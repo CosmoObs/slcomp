@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".figures/slcomp.png" alt="slcomp Logo" width="90%" />
+  <img src="https://raw.githubusercontent.com/CosmoObs/slcomp/refs/heads/main/.figures/slcomp.png" alt="slcomp Logo" width="100%" />
 </p>
 
 # slcomp: Strong Gravitational Lensing Compilation

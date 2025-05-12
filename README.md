@@ -28,7 +28,7 @@ Use the interactive dashboard to select and view systems.
   <img src=".figures/streamlit_dashboard.gif" width="90%" alt="Animated GIF of the slcomp interactive dashboard" />
 </p>
 
-➡️ **[Dashboard Link](https://YOUR_STABLE_DASHBOARD_LINK_HERE)**
+➡️ **[Dashboard Link](https://slcomp-public.streamlit.app)**
 Filter by `JNAME` or reference and inspect image cutouts.
 
 ## Download Data

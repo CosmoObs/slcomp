@@ -72,16 +72,16 @@ st.markdown(
 @st.cache_data
 def load_data():
     try:
-        database_df = pd.read_pickle("./data/database_df.pickle")
+        database_df = pd.read_pickle("./dashboard/data/database_df.pickle")
         database_consolidated_df = pd.read_parquet(
-            "./data/database_consolidated_df.parquet"
+            "./dashboard/data/database_consolidated_df.parquet"
         )
-        dictionary_data = np.load("./data/dictionary.npy", allow_pickle=True).item()
-        cutouts_df = pd.read_parquet("./data/cutouts.parquet")
+        dictionary_data = np.load("./dashboard/data/dictionary.npy", allow_pickle=True).item()
+        cutouts_df = pd.read_parquet("./dashboard/data/cutouts.parquet")
         return database_df, database_consolidated_df, dictionary_data, cutouts_df
     except FileNotFoundError as e:
         st.error(
-            f"Error loading data file: {e}. Please ensure data files are in the './data/' directory."
+            f"Error loading data file: {e}. Please ensure data files are in the './dashboard/data/' directory."
         )
         return pd.DataFrame(), pd.DataFrame(), {}, pd.DataFrame()
 

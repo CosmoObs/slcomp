@@ -4,11 +4,11 @@
 
 # slcomp: Strong Gravitational Lensing Compilation
 
-`slcomp` is a compilation of strong gravitational lensing candidates. It provides tabular data, raw `FITS` image cutouts, and processed color images from multiple wide-field surveys. This dataset is intended for astrophysical research, including statistical studies, preparation for upcoming surveys (e.g., Rubin LSST), machine learning model training, and planning follow-up observations.
+`slcomp` is a compilation of strong gravitational lensing systems. It provides tabular data, raw `FITS` image cutouts, and processed color images from multiple wide-field surveys. This dataset is intended for astrophysical research, including statistical studies, preparation for upcoming surveys (e.g., Rubin LSST), machine learning model training, and planning follow-up observations.
 
 **📄 Citation & Further Details:**
-For a comprehensive description of the compilation, data processing, and scientific applications, please refer to our accompanying paper:
-* **arXiv:** [Link to Your Paper on arXiv (e.g., arxiv.org/abs/YYMM.XXXXX)] (_In preparation_)
+For a comprehensive description of the compilation, data processing, and scientific applications, please refer to:
+* R. Alves de Oliveira, J. P. C. França, M. Makler, _The Last Stand Before Rubin: a consolidated sample of strong lensing systems in wide-field surveys_ (In preparation)
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 

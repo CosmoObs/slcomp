@@ -8,6 +8,17 @@
 
 **📄 Citation & Further Details:**
 For a comprehensive description of the compilation, data processing, and scientific applications, please refer to:
+
+```bibtex
+  @phdthesis{Oliveira:2024,
+      author = "Alves de Oliveira, Renan",
+      title = "Probing cosmology with an eye on Rubin : from strong lensing to the large scale structure of the universe",
+      school = "Universidade Federal do Espírito Santo",
+      year = "2024",
+      month = "04",
+      url = "http://repositorio.ufes.br/handle/10/17648"
+  }
+```
 * R. Alves de Oliveira, J. P. C. França, M. Makler, _The Last Stand Before Rubin: a consolidated sample of strong lensing systems in wide-field surveys_ (In preparation)
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)

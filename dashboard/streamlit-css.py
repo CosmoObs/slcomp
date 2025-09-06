@@ -9,7 +9,7 @@ from minio import Minio
 import streamlit as st
 
 # --- MinIO Configuration ---
-MINIO_ENDPOINT_URL = "b041-152-84-248-250.ngrok-free.app"
+MINIO_ENDPOINT_URL = "nonarithmetically-undeliberating-janelle.ngrok-free.app"
 BUCKET_NAME = "slcomp"
 ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 SECRET_KEY = os.getenv("MINIO_SECRET_KEY")

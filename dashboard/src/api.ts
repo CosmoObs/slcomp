@@ -86,12 +86,20 @@ export const loadCutouts = (): Promise<CutoutRecord[]> => fetchJson<CutoutRecord
 //  - Else we prepend scheme from VITE_MINIO_SCHEME (default 'https').
 //  - This allows using plain HTTP during local dev / tunnels without mixed content surprises.
 // const RAW_ENDPOINT: string | undefined = (import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_ENDPOINT;
-const RAW_ENDPOINT: string | undefined = "nonarithmetically-undeliberating-janelle.ngrok-free.app";
+const RAW_ENDPOINT: string | undefined = "l5s5a0sibv6w.share.zrok.io";
 const ENDPOINT_SCHEME: string = ((import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_SCHEME || 'https').replace(/:$/,'');
 export const buildCutoutUrl = (objectKey: string): string => {
   const cleaned = objectKey.trim().replace(/^\/+/, '');
-  // Ensure Cutouts/ prefix once
   const path = cleaned.startsWith('Cutouts/') ? cleaned : `Cutouts/${cleaned}`;
+
+  // In dev, go through local proxy to inject headers and avoid CORS + interstitial
+  if (import.meta.env && (import.meta as any).env.DEV) {
+    // Strip the prefix "Cutouts/" because the proxy rewrite adds it back (see vite proxy config)
+    const proxied = '/proxy-cutouts/' + path.replace(/^Cutouts\//, '');
+    if((import.meta as { env?: Record<string, string> }).env?.VITE_DEBUG_CUTOUTS) console.debug('[cutout-url-dev-proxy]', { objectKey, path, proxied });
+    return proxied;
+  }
+
   if(!RAW_ENDPOINT) return path; // fallback relative path if not configured
   let base = RAW_ENDPOINT.trim();
   if(!/^https?:\/\//i.test(base)) {
@@ -106,54 +114,10 @@ export const buildCutoutUrl = (objectKey: string): string => {
 // Simple async wrapper (keeps existing calling pattern with react-query)
 export const getCutoutObject = async (objectKey: string): Promise<string | null> => {
   const url = buildCutoutUrl(objectKey);
-  
-  // For ngrok URLs, we need to add headers to bypass the browser warning
-  if (RAW_ENDPOINT && RAW_ENDPOINT.includes('ngrok')) {
-    try {
-      console.log('[DEBUG] Fetching image with ngrok headers:', url);
-      
-      // Create a new URL object to add ngrok bypass headers
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'ngrok-skip-browser-warning': 'true',
-          'User-Agent': 'LaStBeRu-Explorer/1.0 (Custom)'
-        },
-        mode: 'cors',
-        credentials: 'omit'
-      });
-      
-      console.log('[DEBUG] Response status:', response.status, response.statusText);
-      
-      if (response.ok) {
-        // Convert to blob URL for better browser handling
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        console.log('[DEBUG] Created blob URL:', blobUrl);
-        return blobUrl;
-      } else {
-        console.warn('[DEBUG] Response not ok:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch image with headers:', error);
-      // Try creating an image element that can handle the ngrok redirect
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          console.log('[DEBUG] Image loaded successfully via img element');
-          resolve(url);
-        };
-        img.onerror = () => {
-          console.warn('[DEBUG] Image failed to load via img element');
-          resolve(url); // Still return URL, let the component handle the error
-        };
-        img.src = url;
-      });
-    }
+  // In dev with proxy we just return the proxied path; browser will request via Vite server
+  if ((import.meta as any).env?.DEV) {
+    return url;
   }
-  
-  console.log('[DEBUG] Using direct URL:', url);
+  // In production (no proxy) just return direct URL (CORS must be handled server-side)
   return url;
 };

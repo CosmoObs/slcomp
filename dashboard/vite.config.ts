@@ -46,10 +46,29 @@ export default defineConfig({
   server: { 
     port: 5173,
     headers: {
-      // Add headers to help with CORS during development
+      // Basic permissive headers (still need target server cooperation for true CORS)
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
       'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
+    },
+    // Dev-only proxy to inject the zrok interstitial bypass header and avoid CORS issues.
+    proxy: {
+      // Usage in code: fetch('/proxy-cutouts/<rest-of-cutouts-path>')
+      '/proxy-cutouts': {
+        target: 'https://l5s5a0sibv6w.share.zrok.io',
+        changeOrigin: true,
+        // Rewrite /proxy-cutouts/Processed_Cutouts/... -> /slcomp/Cutouts/Processed_Cutouts/...
+        rewrite: (path) => path
+          .replace(/^\/proxy-cutouts\/?/, '/slcomp/Cutouts/')
+          .replace(/\/+/g,'/'),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Header required by zrok to skip warning interstitial
+            proxyReq.setHeader('skip_zrok_interstitial', 'true');
+            proxyReq.setHeader('User-Agent', 'LaStBeRu-Explorer/1.0 (DevProxy)');
+          });
+        }
+      }
     }
   }
 });

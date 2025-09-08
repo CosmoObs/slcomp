@@ -44,7 +44,7 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
           src={data}
           loading="lazy"
           decoding="async"
-          crossOrigin="anonymous"
+          alt={record.band + ' cutout'}
           style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'contain', imageRendering:'auto' }}
           onError={(e)=>{
             const img = e.currentTarget;
@@ -54,7 +54,7 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
             // For ngrok URLs, try adding the bypass parameters as query string
             if (img.src.includes('ngrok')) {
               const url = new URL(img.src);
-              url.searchParams.set('ngrok-skip-browser-warning', 'true');
+              url.searchParams.set('skip_zrok_interstitial', 'true');
               img.src = url.toString();
               return;
             }

@@ -24,6 +24,7 @@ interface ProjectedPoint {
   dec: number;
 }
 
+// Web Worker wrapper for sky projection
 class SkyProjectionWorker {
   private worker: Worker | null = null;
   private requestId = 0;
@@ -31,12 +32,67 @@ class SkyProjectionWorker {
 
   constructor() {
     try {
-      // Primary path: module worker handled by bundler
-      this.worker = new Worker(
-        new URL('../workers/skyProjectionWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
-
+      // Create worker from inline script to avoid bundling issues
+      const workerScript = `
+        const raToLon = (raDeg) => {
+          const wrapped = ((raDeg + 180) % 360) - 180;
+          return -wrapped;
+        };
+        
+        const deg2rad = (d) => d * Math.PI / 180;
+        
+        function solveTheta(phi) {
+          const HALF_PI = Math.PI / 2;
+          if (Math.abs(Math.abs(phi) - HALF_PI) < 1e-12) {
+            return Math.sign(phi) * HALF_PI;
+          }
+          let theta = Math.max(-HALF_PI, Math.min(HALF_PI, phi));
+          for (let i = 0; i < 12; i++) {
+            const f = 2 * theta + Math.sin(2 * theta) - Math.PI * Math.sin(phi);
+            const fp = 2 + 2 * Math.cos(2 * theta);
+            if (Math.abs(fp) < 1e-12) break;
+            const delta = f / fp;
+            theta -= delta;
+            if (Math.abs(delta) < 1e-10) break;
+          }
+          return theta;
+        }
+        
+        function projectObjects(objects) {
+          const result = [];
+          for (const o of objects) {
+            if (!o) continue;
+            const toNum = (v) => typeof v === 'number' ? v : (typeof v === 'string' ? parseFloat(v) : NaN);
+            let RA = toNum(o.RA);
+            let DEC = toNum(o.DEC);
+            if (isNaN(RA) || isNaN(DEC)) continue;
+            if (RA < 0) RA = ((RA % 360) + 360) % 360;
+            if (RA >= 360) RA = RA % 360;
+            if (DEC < -90 || DEC > 90) continue;
+            const lon = deg2rad(raToLon(RA));
+            const lat = deg2rad(DEC);
+            const theta = solveTheta(lat);
+            const xNorm = (2 * Math.SQRT2 / Math.PI) * lon * Math.cos(theta);
+            const yNorm = -Math.SQRT2 * Math.sin(theta);
+            result.push({ x: xNorm, y: yNorm, jname: o.JNAME, ra: RA, dec: DEC });
+          }
+          return result;
+        }
+        
+        self.onmessage = function(e) {
+          const { objects, requestId } = e.data;
+          try {
+            const projectedPoints = projectObjects(objects);
+            self.postMessage({ requestId, projectedPoints, success: true });
+          } catch (error) {
+            self.postMessage({ requestId, error: error.message, success: false });
+          }
+        };
+      `;
+      
+      const blob = new Blob([workerScript], { type: 'application/javascript' });
+      this.worker = new Worker(URL.createObjectURL(blob));
+      
       this.worker.onmessage = (e) => {
         const { requestId, projectedPoints, success } = e.data;
         const callback = this.pendingRequests.get(requestId);
@@ -46,12 +102,6 @@ class SkyProjectionWorker {
         }
       };
     } catch (error) {
-      console.warn('Module Worker not available; falling back to main thread.');
-    }
-  }
-
-  // ... rest of class methods ...
-}
       console.warn('Web Worker not available, falling back to main thread');
     }
   }
@@ -256,20 +306,19 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height=360, width=600, o
       }
 
       // DEC parallels (reduced set)
-      const latLines = [-60, -30, 0, 30, 60];
-      for (const latDeg of latLines) {
+      const latLines = [-60,-30,0,30,60];
+      for(const latDeg of latLines){
         const lat = latDeg * Math.PI / 180;
         const theta = Math.max(-Math.PI/2, Math.min(Math.PI/2, lat));
         const seg: number[][] = [];
-        for (let raDeg = 0; raDeg <= 360; raDeg += 6) { // Reduced resolution
+        for(let raDeg=0; raDeg<=360; raDeg+=6){ // Reduced resolution
           const lonDeg = (((raDeg + 180) % 360) - 180) * -1;
           const lon = lonDeg * Math.PI / 180;
-          const x = (2 * Math.SQRT2 / Math.PI) * lon * Math.cos(theta);
-         const y = -Math.SQRT2 * Math.sin(theta);
-          seg.push([x, y, raDeg === 0 ? 1 : 0]);
+          const x = (2*Math.SQRT2/Math.PI) * lon * Math.cos(theta);
+          const y = Math.SQRT2 * Math.sin(theta);
+          seg.push([x,y,raDeg===0?1:0]);
         }
-        worldLine(seg, 'rgba(255,255,255,0.08)');
-      }
+        worldLine(seg,'rgba(255,255,255,0.08)');
       }
 
       // Labels (only if zoomed enough)

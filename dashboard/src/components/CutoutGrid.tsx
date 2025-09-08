@@ -1,7 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect } from 'react';
 import { Box, Grid, Typography, Paper, Skeleton } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { getCutoutObject } from '../api';
+import { getCutoutObject, revokeBlobUrl } from '../api';
 import type { CutoutRecord } from '../types';
 
 interface Props {
@@ -34,6 +34,15 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
     retry: 1, // Only retry once for ngrok issues
   });
   
+  // Clean up blob URLs when component unmounts or data changes
+  useEffect(() => {
+    return () => {
+      if (data) {
+        revokeBlobUrl(data);
+      }
+    };
+  }, [data]);
+  
   return (
     <Paper sx={{ p: 1.5, textAlign: 'center', background: 'linear-gradient(145deg, rgba(40,65,75,0.6), rgba(25,40,50,0.4))', border: '1px solid rgba(90,170,200,0.3)' }}>
       <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing:0.5 }}>{record.band}</Typography>
@@ -51,8 +60,13 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
             if(img.dataset.fallbackTried) return;
             img.dataset.fallbackTried = '1';
             
-            // For ngrok URLs, try adding the bypass parameters as query string
-            if (img.src.includes('ngrok')) {
+            // For blob URLs, we can't retry with different parameters
+            if (img.src.startsWith('blob:')) {
+              return;
+            }
+            
+            // For ngrok/zrok URLs, try adding the bypass parameters as query string
+            if (img.src.includes('ngrok') || img.src.includes('zrok')) {
               const url = new URL(img.src);
               url.searchParams.set('skip_zrok_interstitial', 'true');
               img.src = url.toString();

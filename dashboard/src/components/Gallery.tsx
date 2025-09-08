@@ -5,7 +5,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import type { CutoutRecord } from '../types';
-import { getCutoutObject } from '../api';
+import { getCutoutObject, revokeBlobUrl } from '../api';
 
 interface GalleryProps {
   cutouts: CutoutRecord[];
@@ -34,6 +34,14 @@ export const Gallery: React.FC<GalleryProps> = ({ cutouts }) => {
     setImages([]);
     setLoadedCount(0);
     if(filtered.length === 0) return;
+    
+    // Clean up previous blob URLs
+    images.forEach(img => {
+      if (img.url) {
+        revokeBlobUrl(img.url);
+      }
+    });
+    
     (async () => {
       const entries: ImgEntry[] = [];
       for(const c of filtered){
@@ -50,7 +58,15 @@ export const Gallery: React.FC<GalleryProps> = ({ cutouts }) => {
         setImages(e=> [...e, ...entries.filter(ne=> !e.find(prev => prev.key === ne.key))]);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { 
+      cancelled = true;
+      // Clean up blob URLs when component unmounts
+      images.forEach(img => {
+        if (img.url) {
+          revokeBlobUrl(img.url);
+        }
+      });
+    };
   }, [filtered]);
 
   const progress = filtered.length === 0 ? 0 : Math.min(100, Math.round( (loadedCount / filtered.length) * 100));

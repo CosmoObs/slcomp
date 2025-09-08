@@ -111,13 +111,74 @@ export const buildCutoutUrl = (objectKey: string): string => {
   return url;
 };
 
+// Cache for blob URLs to avoid re-fetching images
+const blobCache = new Map<string, string>();
+
 // Simple async wrapper (keeps existing calling pattern with react-query)
 export const getCutoutObject = async (objectKey: string): Promise<string | null> => {
   const url = buildCutoutUrl(objectKey);
+  
   // In dev with proxy we just return the proxied path; browser will request via Vite server
   if ((import.meta as any).env?.DEV) {
     return url;
   }
-  // In production (no proxy) just return direct URL (CORS must be handled server-side)
-  return url;
+  
+  // Check if we already have a blob URL for this image
+  if (blobCache.has(url)) {
+    const cachedUrl = blobCache.get(url)!;
+    if ((import.meta as { env?: Record<string, string> }).env?.VITE_DEBUG_CUTOUTS) {
+      console.debug('[cutout-blob-cache-hit]', { objectKey, url, cachedUrl });
+    }
+    return cachedUrl;
+  }
+  
+  try {
+    if ((import.meta as { env?: Record<string, string> }).env?.VITE_DEBUG_CUTOUTS) {
+      console.debug('[cutout-fetch-start]', { objectKey, url });
+    }
+    
+    // In production, fetch the image with proper headers to bypass zrok interstitial
+    const response = await fetch(url, {
+      headers: {
+        'skip_zrok_interstitial': 'true',
+        'Accept': 'image/*'
+      },
+      cache: 'force-cache'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    
+    // Create blob URL from the response
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Cache the blob URL
+    blobCache.set(url, blobUrl);
+    
+    if ((import.meta as { env?: Record<string, string> }).env?.VITE_DEBUG_CUTOUTS) {
+      console.debug('[cutout-blob-created]', { objectKey, url, blobUrl, blobSize: blob.size });
+    }
+    
+    return blobUrl;
+  } catch (error) {
+    console.error('Failed to fetch cutout image:', { objectKey, url, error });
+    // Fallback to direct URL if fetch fails
+    return url;
+  }
+};
+
+// Utility function to clean up blob URLs (can be called from components)
+export const revokeBlobUrl = (url: string) => {
+  if (url && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+    // Remove from cache
+    for (const [key, value] of blobCache.entries()) {
+      if (value === url) {
+        blobCache.delete(key);
+        break;
+      }
+    }
+  }
 };

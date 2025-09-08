@@ -1,28 +1,41 @@
 import type { DataRecord, ConsolidatedRecord, Dictionary, CutoutRecord } from './types';
 
-// In absence of a backend we will load static JSON via fetch (can be swapped later)
+// NOTE: When deployed on GitHub Pages the app is usually served from /<repo-name>/.
+// Using absolute paths (starting with "/") causes fetches to point at the domain root
+// (e.g. https://<user>.github.io/data/...) which 404s and returns the HTML index page.
+// That HTML then triggers: "SyntaxError: Unexpected token '<'" when res.json() is called.
+// We instead build URLs relative to Vite's injected BASE_URL (import.meta.env.BASE_URL).
 
-export const loadDatabase = async (): Promise<DataRecord[]> => {
-  const res = await fetch('/data/database.json');
-  return res.json();
+const BASE_URL: string = (import.meta as { env?: Record<string, string> }).env?.BASE_URL || '/';
+
+const buildDataUrl = (file: string) => {
+  // Ensure exactly one trailing slash for BASE_URL then append data/<file>
+  const base = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+  return `${base}data/${file}`;
 };
 
-export const loadConsolidated = async (): Promise<ConsolidatedRecord[]> => {
-  const res = await fetch('/data/consolidated_database.json');
-  return res.json();
-};
+async function fetchJson<T>(file: string): Promise<T> {
+  const url = buildDataUrl(file);
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) {
+    // Surface clearer diagnostics when something goes wrong (like path issues on Pages)
+    const text = await res.text();
+    throw new Error(`Failed to fetch ${url} (HTTP ${res.status}) - First 120 chars: ${text.slice(0, 120)}`);
+  }
+  try {
+    return await res.json();
+  } catch (err) {
+    // Provide snippet of body to aid debugging of unexpected HTML responses
+    const body = await res.clone().text().catch(() => '');
+    throw new Error(`Invalid JSON at ${url}: ${(err as Error).message}. Snippet: ${body.slice(0, 120)}`);
+  }
+}
 
-export const loadDictionary = async (): Promise<Dictionary> => {
-  // dictionary.npy not easily consumable directly; expect a JSON conversion later.
-  // Placeholder expects a json representation placed at /data/dictionary.json
-  const res = await fetch('/data/dictionary.json');
-  return res.json();
-};
-
-export const loadCutouts = async (): Promise<CutoutRecord[]> => {
-  const res = await fetch('/data/cutouts.json');
-  return res.json();
-};
+// Public data loaders (can be swapped for real API later)
+export const loadDatabase = (): Promise<DataRecord[]> => fetchJson<DataRecord[]>('database.json');
+export const loadConsolidated = (): Promise<ConsolidatedRecord[]> => fetchJson<ConsolidatedRecord[]>('consolidated_database.json');
+export const loadDictionary = (): Promise<Dictionary> => fetchJson<Dictionary>('dictionary.json');
+export const loadCutouts = (): Promise<CutoutRecord[]> => fetchJson<CutoutRecord[]>('cutouts.json');
 
 // MinIO direct image retrieval (signed URL pattern) - placeholder using fetch of gateway
 // Direct public path construction (no proxy). Expect objectKey like

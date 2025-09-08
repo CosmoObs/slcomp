@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+*.cache
+
+# Local env files (never commit secrets)
+.env*
+!.env.example
+
+# Generated data files
+public/data/*.json
+
+# Vite / TypeScript build artifacts
+tsbuildinfo.tsbuildinfo
+
+# Editor
+.idea/
+.vscode/
+
+# Coverage / tests (future)
+coverage/

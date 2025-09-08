@@ -2,7 +2,6 @@ name: Deploy React Dashboard to GitHub Pages
 
 on:
   push:
-    branches: [ main, streamlit ]
     paths: [ 'dashboard/**' ]
   workflow_dispatch:
 

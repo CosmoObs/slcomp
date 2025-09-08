@@ -36,17 +36,17 @@ For a comprehensive description of the compilation, data processing, and scienti
 
 Use the interactive dashboard to select and view systems.
 <p align="center">
-  <img src=".figures/streamlit_dashboard.gif" width="90%" alt="Animated GIF of the slcomp interactive dashboard" />
+  <img src=".figures/dashboard.gif" width="60%" alt="Animated GIF of the slcomp interactive dashboard" />
 </p>
 
-➡️ **[Dashboard Link](https://slcomp-public.streamlit.app)**
+➡️ **[Dashboard Link](https://cosmoobs.github.io/slcomp)**
 Filter by `JNAME` or reference and inspect image cutouts.
 
 ## Download Data
 
 Tabular data and processed image cutouts are available for download.
 <p align="center">
-  <img src=".figures/minio_service.gif" width="90%" alt="Animated GIF of data download from the MinIO service" />
+  <img src=".figures/minio_service.gif" width="60%" alt="Animated GIF of data download from the MinIO service" />
 </p>
 
 ➡️ **[MinIO Service Link](https://ruggedly-quaky-maricruz.ngrok-free.app/login)**

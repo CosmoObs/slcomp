@@ -16,44 +16,57 @@ interface Props {
 }
 
 export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected, height=360, fullHeight=false }) => {
-  const rows = useMemo(()=> objects
-    .filter(o=> !!o && !!o.JNAME)
-    .map((o,i)=> ({ id: o.JNAME || i, ...o })), [objects]);
+  // Memoize rows computation to avoid recalculation on every render
+  const rows = useMemo(()=> {
+    if (!objects || objects.length === 0) return [];
+    return objects
+      .filter(o=> !!o?.JNAME)
+      .map((o,i)=> ({ id: o.JNAME || i, ...o }));
+  }, [objects]);
+  
   const cols: GridColDef[] = useMemo(()=> [
     { field:'JNAME', headerName:'JNAME', flex:1, minWidth:160 }
   ], []);
 
-  // Pagination state
-  const [pageSize, setPageSize] = useState(100); // Aumentado de 80 para 100
+  // NOTE: DataGrid MIT version limits pageSize to 100 (larger requires Pro/Premium)
+  // Keep state capped at 100 to avoid runtime errors.
+  const [pageSize, setPageSize] = useState(100);
   const [page, setPage] = useState(0);
 
-  // Otimização: usar useCallback para evitar re-criação da função
+  // Optimize callbacks with useCallback and dependency arrays
   const handleRowClick = useCallback((params: any) => {
     onSelect(params.row.JNAME);
   }, [onSelect]);
 
   const handlePaginationChange = useCallback((model: any) => {
-    setPage(model.page);
-    setPageSize(model.pageSize);
-  }, []);
-
-  // Ensure selected row visible by jumping to its page when selection changes
-  useEffect(()=> {
-    if(!selected) return;
-    const idx = rows.findIndex(r=> r.JNAME === selected);
-    if(idx >=0){
-      const newPage = Math.floor(idx / pageSize);
-      if(newPage !== page) setPage(newPage);
+    if (model.page !== page) setPage(model.page);
+    if (model.pageSize !== pageSize) {
+      // Guard against attempts to exceed MIT cap
+      const safeSize = Math.min(100, model.pageSize || 100);
+      setPageSize(safeSize);
     }
-  }, [selected, rows, pageSize, page]);
+  }, [page, pageSize]);
 
-  const header = (
+  // Optimized selection following with reduced re-computation
+  const selectedRowIndex = useMemo(() => {
+    if (!selected || !rows.length) return -1;
+    return rows.findIndex(r => r.JNAME === selected);
+  }, [selected, rows]);
+
+  useEffect(() => {
+    if (selectedRowIndex >= 0) {
+      const newPage = Math.floor(selectedRowIndex / pageSize);
+      if (newPage !== page) setPage(newPage);
+    }
+  }, [selectedRowIndex, pageSize, page]);
+
+  const header = useMemo(() => (
     <Typography variant="caption" sx={{ pl:1, fontWeight:600, letterSpacing:0.5 }}>
-  Filtered Objects
+      Filtered Objects ({objects.length})
     </Typography>
-  );
+  ), [objects.length]);
 
-  // Otimização: memoizar props comuns do DataGrid
+  // Memoize DataGrid props to prevent unnecessary re-renders
   const dataGridProps = useMemo(() => ({
     rows,
     columns: cols,
@@ -65,11 +78,34 @@ export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected
     getRowClassName: (params: any) => params.row.JNAME === selected ? 'selected-row' : '',
     paginationModel: { page, pageSize },
     onPaginationModelChange: handlePaginationChange,
+    // Performance optimizations
+    disableVirtualization: false, // Keep virtualization enabled
+    rowBufferPx: 100, // Reduce buffer for better performance
+    columnBufferPx: 100,
   }), [rows, cols, handleRowClick, selected, page, pageSize, handlePaginationChange]);
+
+  // Memoize styles to prevent recalculation
+  const dataGridStyles = useMemo(() => ({
+    '& .MuiDataGrid-virtualScroller': { overflowX:'hidden' },
+    '& .MuiDataGrid-cell': { fontSize:12 },
+    '& .MuiDataGrid-columnHeaders': { background:'rgba(255,255,255,0.04)', backdropFilter:'blur(6px)' },
+    '& .selected-row .MuiDataGrid-cell': { background:'rgba(0,120,180,0.25)!important' },
+    '& .MuiDataGrid-row:hover': { background:'rgba(255,255,255,0.02)' }
+  }), []);
+
+  const paperStyles = useMemo(() => ({
+    display:'flex', 
+    flexDirection:'column', 
+    p:1, 
+    height:'100%', 
+    background:'rgba(255,255,255,0.02)', 
+    backdropFilter:'blur(4px)', 
+    border:'1px solid rgba(255,255,255,0.05)'
+  }), []);
 
   if(fullHeight){
     return (
-      <Paper sx={{ display:'flex', flexDirection:'column', p:1, height:'100%', background:'rgba(255,255,255,0.02)', backdropFilter:'blur(4px)', border:'1px solid rgba(255,255,255,0.05)' }}>
+      <Paper sx={paperStyles}>
         {header}
         <div style={{ flex:1, minHeight:0, width:'100%', marginTop:4 }}>
           <DataGrid
@@ -78,10 +114,7 @@ export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected
             pagination
             sx={{
               height:'100%',
-              '& .MuiDataGrid-virtualScroller': { overflowX:'hidden' },
-              '& .MuiDataGrid-cell': { fontSize:12 },
-              '& .MuiDataGrid-columnHeaders': { background:'rgba(255,255,255,0.04)', backdropFilter:'blur(6px)' },
-              '& .selected-row .MuiDataGrid-cell': { background:'rgba(0,120,180,0.25)!important' }
+              ...dataGridStyles
             }}
           />
         </div>
@@ -96,12 +129,9 @@ export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected
         <DataGrid
           {...dataGridProps}
           pagination
-          sx={{
-            '& .MuiDataGrid-cell': { fontSize:12 },
-            '& .MuiDataGrid-columnHeaders': { background:'rgba(255,255,255,0.04)', backdropFilter:'blur(6px)' },
-            '& .selected-row .MuiDataGrid-cell': { background:'rgba(0,120,180,0.25)!important' }
-          }}
-          pageSizeOptions={[50,100,200,500]}
+          sx={dataGridStyles}
+          // Only expose allowed page sizes within MIT license limit
+          pageSizeOptions={[25,50,75,100]}
         />
       </div>
     </Paper>

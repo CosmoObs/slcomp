@@ -37,14 +37,15 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
   return (
     <Paper sx={{ p: 1.5, textAlign: 'center', background: 'linear-gradient(145deg, rgba(40,65,75,0.6), rgba(25,40,50,0.4))', border: '1px solid rgba(90,170,200,0.3)' }}>
       <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing:0.5 }}>{record.band}</Typography>
-      <Box mt={1} sx={{ width:140, height:140, mx:'auto', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', borderRadius:2, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(90,170,200,0.15)' }}>
-        {isLoading && <Skeleton variant="rectangular" width={140} height={140} />}
-        {!isLoading && data && <img 
-          src={data} 
-          loading="lazy" 
+      <Box mt={1} sx={{ position:'relative', width:'100%', maxWidth:160, mx:'auto' }}>
+        <Box sx={{ position:'relative', width:'100%', pt:'100%', borderRadius:2, overflow:'hidden', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(90,170,200,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {isLoading && <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position:'absolute', inset:0 }} />}
+        {!isLoading && data && <img
+          src={data}
+          loading="lazy"
           decoding="async"
           crossOrigin="anonymous"
-          style={{ width:'100%', height:'100%', objectFit:'contain', imageRendering:'auto' }}
+          style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'contain', imageRendering:'auto' }}
           onError={(e)=>{
             const img = e.currentTarget;
             if(img.dataset.fallbackTried) return;
@@ -67,8 +68,9 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
               if(newSrc !== img.src) img.src = newSrc;
             }
           }} />}
-        {!isLoading && !data && !error && <Typography variant="caption" color="text.secondary" sx={{ textAlign:'center', px:0.5 }}>No image</Typography>}
-        {error && <Typography variant="caption" color="error" sx={{ textAlign:'center', px:0.5 }}>Error</Typography>}
+        {!isLoading && !data && !error && <Typography variant="caption" color="text.secondary" sx={{ textAlign:'center', px:0.5, position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>No image</Typography>}
+        {error && <Typography variant="caption" color="error" sx={{ textAlign:'center', px:0.5, position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>Error</Typography>}
+        </Box>
       </Box>
       {error && <Typography variant="caption" color="error" sx={{ display:'block', mt:0.5 }}>Err</Typography>}
     </Paper>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, lazy, Suspense, useCallback } from 'react';
-import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography, Paper, IconButton, Tooltip, Button, CircularProgress } from '@mui/material';
+import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography, Paper, IconButton, Tooltip, Button, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { useQuery } from '@tanstack/react-query';
@@ -42,7 +42,7 @@ const App: React.FC = () => {
   const [filters, setFilters] = useState<FiltersState>(initialFilters);
   const [tab, setTab] = useState(0);
   
-  // Derive numeric domains for selected fields
+  // Derive numeric domains for selected fields (memoized with cache)
   const numericFields = useMemo(() => [
     { key: 'RA', label: 'RA' },
     { key: 'DEC', label: 'DEC' },
@@ -51,10 +51,15 @@ const App: React.FC = () => {
   ], []);
 
   const domain = useMemo(()=>{
+    if (!database.length) return {};
+    
     const acc: Record<string,{min:number;max:number}> = {};
     numericFields.forEach(f=>{
       const vals: number[] = [];
-      for(const r of database){
+      // Sample every 10th record for large datasets to speed up domain calculation
+      const step = database.length > 10000 ? 10 : 1;
+      for(let i = 0; i < database.length; i += step){
+        const r = database[i];
         if(!r) continue;
         let v: unknown = r[f.key];
         if(typeof v === 'string'){ const parsed = parseFloat(v); if(!isNaN(parsed)) v = parsed; }
@@ -65,21 +70,26 @@ const App: React.FC = () => {
     return acc;
   }, [database, numericFields]);
 
-  // Precompute mapping: JNAME -> set of references (for fast filtering)
+  // Precompute mapping: JNAME -> set of references (for fast filtering) - optimized
   const jnameToRefs = useMemo(()=> {
+    if (!references.length) return {};
+    
     const map: Record<string, Set<string>> = {};
     for(const ref of references){
       const entry = dictionary[ref] as { JNAME?: string[] };
       if(!entry || !Array.isArray(entry.JNAME)) continue;
       for(const jn of entry.JNAME){
-        (map[jn] ||= new Set()).add(ref);
+        if (!map[jn]) map[jn] = new Set();
+        map[jn].add(ref);
       }
     }
     return map;
   }, [references, dictionary]);
 
-  // Unique base objects (collapse duplicates by JNAME, keep first numeric values encountered)
+  // Unique base objects (collapse duplicates by JNAME) - optimized with early returns
   const baseObjects = useMemo(()=> {
+    if (!database.length) return [];
+    
     const toNum = (x: unknown): number | null => {
       if(typeof x === 'number' && !isNaN(x)) return x;
       if(typeof x === 'string'){
@@ -89,20 +99,23 @@ const App: React.FC = () => {
       return null;
     };
     const seen: Record<string, SkyMapObject> = {};
+    
     for(const r of database){
-      if(!r || !r.JNAME) continue;
-      const RA = toNum(r.RA);
-      const DEC = toNum(r.DEC);
-      const z_L = toNum(r.z_L);
-      const z_S = toNum(r.z_S);
+      if(!r?.JNAME) continue;
+      
       if(!seen[r.JNAME]){
+        const RA = toNum(r.RA);
+        const DEC = toNum(r.DEC);
+        const z_L = toNum(r.z_L);
+        const z_S = toNum(r.z_S);
         seen[r.JNAME] = { JNAME: r.JNAME, RA, DEC, z_L, z_S };
       } else {
+        // Only update null values to avoid unnecessary work
         const tgt = seen[r.JNAME];
-        if(tgt.RA == null && RA != null) tgt.RA = RA;
-        if(tgt.DEC == null && DEC != null) tgt.DEC = DEC;
-        if(tgt.z_L == null && z_L != null) tgt.z_L = z_L;
-        if(tgt.z_S == null && z_S != null) tgt.z_S = z_S;
+        if(tgt.RA == null) tgt.RA = toNum(r.RA);
+        if(tgt.DEC == null) tgt.DEC = toNum(r.DEC);
+        if(tgt.z_L == null) tgt.z_L = toNum(r.z_L);
+        if(tgt.z_S == null) tgt.z_S = toNum(r.z_S);
       }
     }
     return Object.values(seen);
@@ -114,29 +127,44 @@ const App: React.FC = () => {
   // Debounce search text to avoid excessive filtering
   const debouncedSearch = useDebounce(filters.jnameSearch, 300);
 
+  // Optimized filtering with early returns and better algorithms
   const filteredObjects = useMemo(()=> {
     if(!baseObjects.length) return [];
+    
     const search = debouncedSearch.trim().toLowerCase();
     const useRefs = filters.references.length > 0;
     const refsSet = useRefs ? new Set(filters.references) : null;
+    const hasNumericFilters = activeNumericKeys.length > 0;
+    
     return baseObjects.filter((r: SkyMapObject)=> {
-      if(!r || !r.JNAME) return false;
+      if(!r?.JNAME) return false;
+      
+      // Text search first (cheapest filter)
       if(search && !String(r.JNAME).toLowerCase().includes(search)) return false;
+      
+      // Reference filter
       if(useRefs){
         const rs = jnameToRefs[String(r.JNAME)];
         if(!rs) return false;
-        let ok = false;
-        for(const ref of rs){ if(refsSet!.has(ref)){ ok = true; break; } }
-        if(!ok) return false;
+        let hasMatchingRef = false;
+        for(const ref of rs){ 
+          if(refsSet!.has(ref)){ 
+            hasMatchingRef = true; 
+            break; 
+          } 
+        }
+        if(!hasMatchingRef) return false;
       }
-      if(activeNumericKeys.length){
+      
+      // Numeric filters (most expensive, do last)
+      if(hasNumericFilters){
         for(const k of activeNumericKeys){
           const range = filters.numeric[k]!;
           const val = r[k] as number;
-          if(typeof val !== 'number') return false;
-          if(val < range[0] || val > range[1]) return false;
+          if(typeof val !== 'number' || val < range[0] || val > range[1]) return false;
         }
       }
+      
       return true;
     });
   }, [baseObjects, debouncedSearch, filters.references, filters.numeric, jnameToRefs, activeNumericKeys]);
@@ -171,6 +199,31 @@ const App: React.FC = () => {
 
   const anyLoading = dbLoading || consLoading || dictLoading || cutoutsLoading;
   const anyError = dbError || consError || dictError || cutoutsError;
+  const theme = useTheme();
+  const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
+  const panelHeight = isMdUp ? 360 : 300; // responsive height for map/table
+
+  // Show loading state early to improve perceived performance
+  if (anyLoading && !database.length) {
+    return (
+      <Box sx={{ flexGrow: 1 }}>
+        <AppBar position="static" color="transparent" elevation={0}>
+          <Toolbar>
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
+          </Toolbar>
+        </AppBar>
+        <Container maxWidth="xl" sx={{ py: 3 }}>
+          <Paper sx={{ p:6, textAlign:'center', mb:3, background:'linear-gradient(135deg,#102028,#0c161c)' }}>
+            <CircularProgress size={40} sx={{ mb:2 }} />
+            <Typography variant="body2" color="text.secondary">Loading astronomical data...</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              This may take a moment for large datasets
+            </Typography>
+          </Paper>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -202,14 +255,35 @@ const App: React.FC = () => {
           </Paper>
         )}
         <Paper sx={{ p: 2, mb: 3, background: 'linear-gradient(135deg,#112029,#0d151b)' }}>
-          <Box display="flex" gap={2} alignItems="stretch" sx={{ height: 360 }}>
-            <Box sx={{ flex:'0 0 260px', display:'flex', flexDirection:'column' }}>
+          <Box display="flex" gap={2} alignItems="stretch" 
+               sx={{ flexDirection:{ xs:'column', md:'row' } }}>
+            <Box 
+              sx={{ 
+                flex: { xs:'1 1 auto', md:'0 0 260px' }, 
+                width:{ xs:'100%', md:260 }, 
+                display:'flex', 
+                flexDirection:'column', 
+                minHeight:0, 
+                height:{ md: panelHeight }
+              }}
+            >
               <Box sx={{ flex:1, minHeight:0 }}>
-                <ObjectsTable objects={filteredObjects} onSelect={handleJNameSelect} selected={jname} fullHeight />
+                <ObjectsTable 
+                  objects={filteredObjects} 
+                  onSelect={handleJNameSelect} 
+                  selected={jname} 
+                  fullHeight={isMdUp} 
+                  height={panelHeight} 
+                />
               </Box>
             </Box>
-            <Box flex={1} minWidth={0}>
-              <SkyMap objects={filteredObjects} selected={jname} onSelect={handleJNameSelect} height={360} />
+            <Box flex={1} minWidth={0} sx={{ height: panelHeight }}>
+              <SkyMap 
+                objects={filteredObjects} 
+                selected={jname} 
+                onSelect={handleJNameSelect} 
+                height={panelHeight} 
+              />
             </Box>
           </Box>
           {jname && <Box sx={{ mt:1, textAlign:'left' }}><Button size="small" onClick={handleJNameClear}>Clear selection</Button></Box>}

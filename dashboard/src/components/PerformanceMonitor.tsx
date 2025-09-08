@@ -77,11 +77,11 @@ export const usePerformanceStats = () => {
     setStats(prev => ({ ...prev, ...newStats }));
   };
 
-  const measureRenderTime = (callback: () => void) => {
+  const measureRenderTime = async <T>(callback: () => Promise<T> | T) => {
     const start = performance.now();
-    callback();
-    const end = performance.now();
-    updateStats({ renderTime: end - start });
+    const result = await callback();
+    updateStats({ renderTime: performance.now() - start });
+    return result;
   };
 
   const getMemoryUsage = () => {

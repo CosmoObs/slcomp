@@ -256,19 +256,20 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height=360, width=600, o
       }
 
       // DEC parallels (reduced set)
-      const latLines = [-60,-30,0,30,60];
-      for(const latDeg of latLines){
+      const latLines = [-60, -30, 0, 30, 60];
+      for (const latDeg of latLines) {
         const lat = latDeg * Math.PI / 180;
         const theta = Math.max(-Math.PI/2, Math.min(Math.PI/2, lat));
         const seg: number[][] = [];
-        for(let raDeg=0; raDeg<=360; raDeg+=6){ // Reduced resolution
+        for (let raDeg = 0; raDeg <= 360; raDeg += 6) { // Reduced resolution
           const lonDeg = (((raDeg + 180) % 360) - 180) * -1;
           const lon = lonDeg * Math.PI / 180;
-          const x = (2*Math.SQRT2/Math.PI) * lon * Math.cos(theta);
-          const y = Math.SQRT2 * Math.sin(theta);
-          seg.push([x,y,raDeg===0?1:0]);
+          const x = (2 * Math.SQRT2 / Math.PI) * lon * Math.cos(theta);
+         const y = -Math.SQRT2 * Math.sin(theta);
+          seg.push([x, y, raDeg === 0 ? 1 : 0]);
         }
-        worldLine(seg,'rgba(255,255,255,0.08)');
+        worldLine(seg, 'rgba(255,255,255,0.08)');
+      }
       }
 
       // Labels (only if zoomed enough)

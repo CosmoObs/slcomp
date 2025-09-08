@@ -37,7 +37,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           cd dashboard
-          pip install pandas numpy minio
+          pip install pandas numpy minio pyarrow fastparquet
           
       - name: Prepare data from MinIO
         env:

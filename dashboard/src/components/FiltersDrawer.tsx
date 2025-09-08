@@ -75,7 +75,21 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
   };
 
   return (
-    <Drawer anchor="left" open={open} onClose={onClose} PaperProps={{ sx: { width: 360, background: 'linear-gradient(180deg,#0d1820,#0a141a)', display:'flex', flexDirection:'column' } }}>
+    <Drawer 
+      anchor="left" 
+      open={open} 
+      onClose={onClose} 
+      PaperProps={{ 
+        sx: ({ breakpoints }) => ({ 
+          width: { xs: '100%', sm: 320, md: 360 }, 
+          maxWidth: '100%', 
+          background: 'linear-gradient(180deg,#0d1820,#0a141a)', 
+          display:'flex', 
+          flexDirection:'column',
+          borderRight: '1px solid rgba(255,255,255,0.08)'
+        }) 
+      }}
+    >
       <Box sx={{ p:2, pb:1 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
           <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 600 }}>Filters</Typography>
@@ -97,7 +111,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
           </IconButton>
         </Box>
         <Collapse in={!refsCollapsed} timeout="auto" unmountOnExit>
-          <Box sx={{ maxHeight:180, overflowY:'auto', pr:0.5, mb:2, border:'1px solid rgba(255,255,255,0.08)', borderRadius:1, p:1, background:'rgba(255,255,255,0.04)' }}>
+          <Box sx={{ maxHeight:500, overflowY:'auto', pr:0.5, mb:2, border:'1px solid rgba(255,255,255,0.08)', borderRadius:1, p:1, background:'rgba(255,255,255,0.04)' }}>
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
               {allReferences.map(r => {
                 const active = value.references.includes(r);

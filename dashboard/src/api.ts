@@ -14,21 +14,62 @@ const buildDataUrl = (file: string) => {
   return `${base}data/${file}`;
 };
 
+// Add request optimization and caching
+const requestCache = new Map<string, Promise<any>>();
+
 async function fetchJson<T>(file: string): Promise<T> {
   const url = buildDataUrl(file);
-  const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) {
-    // Surface clearer diagnostics when something goes wrong (like path issues on Pages)
-    const text = await res.text();
-    throw new Error(`Failed to fetch ${url} (HTTP ${res.status}) - First 120 chars: ${text.slice(0, 120)}`);
+  
+  // Return cached promise if available
+  if (requestCache.has(url)) {
+    return requestCache.get(url);
   }
-  try {
-    return await res.json();
-  } catch (err) {
-    // Provide snippet of body to aid debugging of unexpected HTML responses
-    const body = await res.clone().text().catch(() => '');
-    throw new Error(`Invalid JSON at ${url}: ${(err as Error).message}. Snippet: ${body.slice(0, 120)}`);
-  }
+  
+  const fetchPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
+    try {
+      const res = await fetch(url, { 
+        cache: 'force-cache', // Use browser cache when available
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        // Surface clearer diagnostics when something goes wrong (like path issues on Pages)
+        const text = await res.text();
+        throw new Error(`Failed to fetch ${url} (HTTP ${res.status}) - First 120 chars: ${text.slice(0, 120)}`);
+      }
+      
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(`Request timeout for ${url}`);
+      }
+      
+      // Provide snippet of body to aid debugging of unexpected HTML responses
+      throw new Error(`Failed to load ${url}: ${(err as Error).message}`);
+    }
+  })();
+  
+  // Cache the promise
+  requestCache.set(url, fetchPromise);
+  
+  // Remove from cache after completion (success or failure)
+  fetchPromise.finally(() => {
+    setTimeout(() => requestCache.delete(url), 5000); // Keep cache for 5s
+  });
+  
+  return fetchPromise;
 }
 
 // Public data loaders (can be swapped for real API later)

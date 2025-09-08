@@ -9,16 +9,39 @@ export default defineConfig({
   base: basePath,
   plugins: [react()],
   build: {
+    target: 'es2020',
     chunkSizeWarningLimit: 1100,
+    sourcemap: false, // Disable source maps for production
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.log in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug']
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ['react','react-dom'],
-          mui: ['@mui/material','@mui/icons-material','@mui/x-data-grid','@emotion/react','@emotion/styled'],
-          vendor: ['@tanstack/react-query', 'recoil']
+          'react-vendor': ['react', 'react-dom'],
+          'mui-core': ['@mui/material', '@mui/system', '@emotion/react', '@emotion/styled'],
+          'mui-icons': ['@mui/icons-material'],
+          'mui-datagrid': ['@mui/x-data-grid'],
+          'query-vendor': ['@tanstack/react-query'],
+          'utils': ['recoil']
         }
       }
     }
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom', 
+      '@mui/material',
+      '@mui/icons-material',
+      '@mui/x-data-grid',
+      '@tanstack/react-query'
+    ]
   },
   server: { 
     port: 5173,

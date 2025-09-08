@@ -49,7 +49,7 @@ Tabular data and processed image cutouts are available for download.
   <img src=".figures/minio_service.gif" width="60%" alt="Animated GIF of data download from the MinIO service" />
 </p>
 
-➡️ **[MinIO Service Link](https://ruggedly-quaky-maricruz.ngrok-free.app/login)**
+➡️ **[MinIO Service Link](https://3t611xfvhvp2.share.zrok.io)**
 **Instructions & Examples:**
 * Data access instructions: **[Data Access Notebook](./notebooks/how_to.ipynb)**.
 * Additional example notebooks (database exploration, proposal planning): `notebooks/` folder, including **[Proposal Planning Notebook](./notebooks/proposals/proposals.ipynb)**.

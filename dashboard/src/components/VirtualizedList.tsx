@@ -8,7 +8,7 @@ interface VirtualizedListProps<T = unknown> {
   overscan?: number;
 }
 
-export const VirtualizedList = memo(<T,>({
+const VirtualizedListInner = <T,>({
   items,
   renderItem,
   itemHeight,
@@ -79,4 +79,6 @@ export const VirtualizedList = memo(<T,>({
       </div>
     </div>
   );
-});
+};
+
+export const VirtualizedList = memo(VirtualizedListInner) as typeof VirtualizedListInner;

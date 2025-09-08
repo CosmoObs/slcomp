@@ -27,13 +27,19 @@ const deg2rad = (d:number)=> d * Math.PI / 180;
 
 // Solve for theta in Mollweide projection: 2θ + sin 2θ = π sin φ
 function solveTheta(phi: number){
-  let theta = phi; // initial guess
-  for(let i=0;i<10;i++){
-    const f = 2*theta + Math.sin(2*theta) - Math.PI * Math.sin(phi);
-    const fp = 2 + 2*Math.cos(2*theta);
+  // Handle poles explicitly to avoid 0/0 in Newton step
+  const HALF_PI = Math.PI / 2;
+  if (Math.abs(Math.abs(phi) - HALF_PI) < 1e-12) {
+    return Math.sign(phi) * HALF_PI;
+  }
+  let theta = Math.max(-HALF_PI, Math.min(HALF_PI, phi)); // clamp initial guess
+  for (let i = 0; i < 12; i++) {
+    const f = 2 * theta + Math.sin(2 * theta) - Math.PI * Math.sin(phi);
+    const fp = 2 + 2 * Math.cos(2 * theta); // 4·cos²θ
+    if (Math.abs(fp) < 1e-12) break; // avoid blow-ups near poles
     const delta = f / fp;
     theta -= delta;
-    if(Math.abs(delta) < 1e-7) break;
+    if (Math.abs(delta) < 1e-10) break;
   }
   return theta;
 }
@@ -160,7 +166,7 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height=360, width=600, o
         const lat = deg2rad(latDeg);
         const theta = solveTheta(lat);
         const x = (2*Math.SQRT2/Math.PI) * lon * Math.cos(theta);
-        const y = Math.SQRT2 * Math.sin(theta);
+        const y = -Math.SQRT2 * Math.sin(theta)
         seg.push([x,y,latDeg===-90?1:0]);
       }
       worldLine(seg,'rgba(255,255,255,0.08)');

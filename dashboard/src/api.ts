@@ -31,7 +31,8 @@ export const loadCutouts = async (): Promise<CutoutRecord[]> => {
 //  - If VITE_MINIO_ENDPOINT includes scheme (http:// or https://) we use it verbatim.
 //  - Else we prepend scheme from VITE_MINIO_SCHEME (default 'https').
 //  - This allows using plain HTTP during local dev / tunnels without mixed content surprises.
-const RAW_ENDPOINT: string | undefined = (import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_ENDPOINT;
+// const RAW_ENDPOINT: string | undefined = (import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_ENDPOINT;
+const RAW_ENDPOINT: string | undefined = "nonarithmetically-undeliberating-janelle.ngrok-free.app";
 const ENDPOINT_SCHEME: string = ((import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_SCHEME || 'https').replace(/:$/,'');
 export const buildCutoutUrl = (objectKey: string): string => {
   const cleaned = objectKey.trim().replace(/^\/+/, '');

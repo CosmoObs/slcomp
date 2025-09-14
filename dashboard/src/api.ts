@@ -89,18 +89,23 @@ export const loadCutouts = (): Promise<CutoutRecord[]> => fetchJson<CutoutRecord
 const RAW_ENDPOINT: string | undefined = "l5s5a0sibv6w.share.zrok.io";
 const ENDPOINT_SCHEME: string = ((import.meta as { env?: Record<string, string> }).env?.VITE_MINIO_SCHEME || 'https').replace(/:$/,'');
 export const buildCutoutUrl = (objectKey: string): string => {
-  const cleaned = objectKey.trim().replace(/^\/+/, '');
+  const cleaned = objectKey.trim().replace(/^\/+/,'');
   const path = cleaned.startsWith('Cutouts/') ? cleaned : `Cutouts/${cleaned}`;
 
-  // In dev, go through local proxy to inject headers and avoid CORS + interstitial
+  // Em dev, usa proxy local
   if (import.meta.env && (import.meta as any).env.DEV) {
-    // Strip the prefix "Cutouts/" because the proxy rewrite adds it back (see vite proxy config)
     const proxied = '/proxy-cutouts/' + path.replace(/^Cutouts\//, '');
     if((import.meta as { env?: Record<string, string> }).env?.VITE_DEBUG_CUTOUTS) console.debug('[cutout-url-dev-proxy]', { objectKey, path, proxied });
     return proxied;
   }
 
-  if(!RAW_ENDPOINT) return path; // fallback relative path if not configured
+  // Se não houver endpoint externo, monta caminho relativo ao BASE_URL
+  if(!RAW_ENDPOINT) {
+    const base = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+    return `${base}${path}`;
+  }
+
+  // Caso contrário, monta URL para endpoint externo
   let base = RAW_ENDPOINT.trim();
   if(!/^https?:\/\//i.test(base)) {
     base = `${ENDPOINT_SCHEME}://${base}`;

@@ -1,6 +1,6 @@
 import React, { memo, useEffect } from 'react';
 import { Box, Grid, Typography, Paper, Skeleton } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCutoutObject, revokeBlobUrl } from '../api';
 import type { CutoutRecord } from '../types';
 
@@ -10,6 +10,15 @@ interface Props {
 }
 
 export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
+  // Ao montar, invalida queries dos cutouts para garantir novo fetch
+  const queryClient = useQueryClient();
+  React.useEffect(() => {
+    if (cutouts && cutouts.length > 0) {
+      cutouts.forEach(c => {
+        queryClient.invalidateQueries({ queryKey: ['cutout', c.file_path] });
+      });
+    }
+  }, [cutouts, queryClient]);
   return (
     <Box mt={2}>
       <Typography variant="h6" gutterBottom>{survey}</Typography>

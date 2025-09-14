@@ -229,7 +229,11 @@ const App: React.FC = () => {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static" color="transparent" elevation={0}>
         <Toolbar>
-          <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
+          {/* Logo SLComp à esquerda */}
+          <Box sx={{ display:'flex', alignItems:'center', mr:1 }}>
+            <img src="https://raw.githubusercontent.com/CosmoObs/slcomp/refs/heads/main/.figures/slcomp.png" alt="SLComp Logo" style={{ height:32, width:80, marginRight:8, borderRadius:1, background:'#000000ff' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
+          </Box>
           <Box flexGrow={1} />
           <Tooltip title="Filters">
             <IconButton color="primary" onClick={handleDrawerToggle} size="small"><FilterAltIcon /></IconButton>
@@ -239,6 +243,22 @@ const App: React.FC = () => {
               <IconButton color="inherit" onClick={resetFilters} size="small" disabled={filters === initialFilters}><ClearAllIcon /></IconButton>
             </span>
           </Tooltip>
+          {/* Botão GitHub à direita */}
+          <Box sx={{ ml:2 }}>
+            <Tooltip title="slcomp Repository">
+              <IconButton
+                color="inherit"
+                component="a"
+                href="https://github.com/CosmoObs/slcomp"
+                target="_blank"
+                rel="noopener noreferrer"
+                size="small"
+                sx={{ p:0.0 }}
+              >
+                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" style={{ height:28, width:28, borderRadius:'50%' }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Toolbar>
       </AppBar>
       <Container maxWidth="xl" sx={{ py: 3 }}>

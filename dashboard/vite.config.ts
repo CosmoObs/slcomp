@@ -26,9 +26,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom'],
           'mui-core': ['@mui/material', '@mui/system', '@emotion/react', '@emotion/styled'],
           'mui-icons': ['@mui/icons-material'],
-          'mui-datagrid': ['@mui/x-data-grid'],
-          'query-vendor': ['@tanstack/react-query'],
-          'utils': ['recoil']
+          'query-vendor': ['@tanstack/react-query']
         }
       }
     }
@@ -36,10 +34,9 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'react',
-      'react-dom', 
+      'react-dom',
       '@mui/material',
       '@mui/icons-material',
-      '@mui/x-data-grid',
       '@tanstack/react-query'
     ]
   },

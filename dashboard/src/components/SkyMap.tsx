@@ -72,21 +72,30 @@ function projectMainThread(objects: SkyObject[]): ProjectedPoint[] {
 }
 
 // --- Worker singleton (typed module worker via Vite's ?worker import) ---
+interface PendingRequest {
+  resolve: (r: ProjectedPoint[]) => void;
+  objects: SkyObject[];
+  timeoutId: ReturnType<typeof setTimeout>;
+}
+
 class WorkerPool {
   private worker: Worker | null = null;
   private nextId = 0;
-  private pending = new Map<number, (r: ProjectedPoint[]) => void>();
+  private pending = new Map<number, PendingRequest>();
 
   constructor() {
     try {
       this.worker = new SkyProjectionWorker();
       this.worker.onmessage = (e: MessageEvent) => {
         const { requestId, projectedPoints, success } = e.data || {};
-        const cb = this.pending.get(requestId);
-        if (cb && success) {
-          cb(projectedPoints);
-          this.pending.delete(requestId);
-        }
+        const req = this.pending.get(requestId);
+        if (!req) return;
+        clearTimeout(req.timeoutId);
+        this.pending.delete(requestId);
+        // On worker error, fall back immediately to main-thread projection
+        // rather than letting the request hang until the timeout fires.
+        if (success) req.resolve(projectedPoints);
+        else req.resolve(projectMainThread(req.objects));
       };
     } catch {
       this.worker = null;
@@ -99,28 +108,38 @@ class WorkerPool {
     }
     return new Promise((resolve) => {
       const id = ++this.nextId;
-      this.pending.set(id, resolve);
-      this.worker!.postMessage({ objects, requestId: id });
-      // Generous timeout — large datasets can legitimately take a few seconds.
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
           resolve(projectMainThread(objects));
         }
       }, 15000);
+      this.pending.set(id, { resolve, objects, timeoutId });
+      this.worker!.postMessage({ objects, requestId: id });
     });
   }
 
   destroy() {
     this.worker?.terminate();
     this.worker = null;
+    for (const req of this.pending.values()) clearTimeout(req.timeoutId);
     this.pending.clear();
   }
 }
 
 const workerPool = new WorkerPool();
+
+// Wrap the unload listener so HMR can replace it cleanly without leaving
+// duplicates registered or terminating the worker mid-update.
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => workerPool.destroy());
+  const handleBeforeUnload = () => workerPool.destroy();
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      workerPool.destroy();
+    });
+  }
 }
 
 export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 600, onSelect, selected }) => {
@@ -178,6 +197,30 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
       centerY: canvasH / 2 + pan.y
     };
   }, [canvasW, canvasH, pan.x, pan.y]);
+
+  // Index pts by JNAME so the overlay's per-frame lookup is O(1).
+  const pointByJname = useMemo(() => {
+    const m = new Map<string, ProjectedPoint>();
+    for (const p of pts) m.set(p.jname, p);
+    return m;
+  }, [pts]);
+  const selectedPoint = useMemo(
+    () => (selected ? pointByJname.get(selected) : undefined),
+    [selected, pointByJname]
+  );
+
+  // Refs that mirror volatile state, so the interaction listeners stay
+  // attached for the lifetime of the canvas instead of being torn down/
+  // re-attached on every pan/zoom (each pointermove was previously
+  // recreating all 7 listeners via setPan -> transform -> effect re-run).
+  const transformRef = useRef(transform);
+  const ptsRef = useRef(pts);
+  const zoomRef = useRef(zoom);
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => { transformRef.current = transform; }, [transform]);
+  useEffect(() => { ptsRef.current = pts; }, [pts]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
   // --- Base layer: grid + non-selected points. Redraws only on data/viewport change. ---
   useEffect(() => {
@@ -335,51 +378,49 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, canvasW, canvasH);
 
-      if (selected && pts.length) {
-        const p = pts.find(pt => pt.jname === selected);
-        if (p) {
-          const { baseScaleX, baseScaleY, centerX, centerY } = transform;
-          const n = pts.length || 1;
-          const basePx = Math.max(0.8, Math.min(2.0, 12 / Math.sqrt(n)));
-          const basePxAdj = basePx * Math.pow(zoom, 0.1);
-          const pxToWorld = 1 / (baseScaleX * zoom);
-          const targetPx = Math.max(6, basePxAdj * 5.2);
-          const rWorld = targetPx * pxToWorld;
+      if (selectedPoint) {
+        const p = selectedPoint;
+        const { baseScaleX, baseScaleY, centerX, centerY } = transform;
+        const n = pts.length || 1;
+        const basePx = Math.max(0.8, Math.min(2.0, 12 / Math.sqrt(n)));
+        const basePxAdj = basePx * Math.pow(zoom, 0.1);
+        const pxToWorld = 1 / (baseScaleX * zoom);
+        const targetPx = Math.max(6, basePxAdj * 5.2);
+        const rWorld = targetPx * pxToWorld;
 
-          ctx.translate(centerX, centerY);
-          ctx.scale(baseScaleX * zoom, baseScaleY * zoom);
+        ctx.translate(centerX, centerY);
+        ctx.scale(baseScaleX * zoom, baseScaleY * zoom);
 
-          const t = now * 0.001;
-          const tw = 0.55 + 0.45 * 0.5 * (Math.sin(t * 5.0) + Math.sin(t * 3.2 + 1.3));
-          const gradOuter = rWorld * (2.6 + 0.3 * Math.sin(t * 2.2));
-          const hue = (t * 40) % 360;
-          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, gradOuter);
-          grad.addColorStop(0, `hsla(${hue}, 95%, 78%, ${(0.85 * tw).toFixed(3)})`);
-          grad.addColorStop(0.45, `hsla(${(hue + 30) % 360}, 90%, 60%, ${(0.30 * tw).toFixed(3)})`);
-          grad.addColorStop(1, `hsla(${(hue + 60) % 360}, 85%, 40%, 0)`);
+        const t = now * 0.001;
+        const tw = 0.55 + 0.45 * 0.5 * (Math.sin(t * 5.0) + Math.sin(t * 3.2 + 1.3));
+        const gradOuter = rWorld * (2.6 + 0.3 * Math.sin(t * 2.2));
+        const hue = (t * 40) % 360;
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, gradOuter);
+        grad.addColorStop(0, `hsla(${hue}, 95%, 78%, ${(0.85 * tw).toFixed(3)})`);
+        grad.addColorStop(0.45, `hsla(${(hue + 30) % 360}, 90%, 60%, ${(0.30 * tw).toFixed(3)})`);
+        grad.addColorStop(1, `hsla(${(hue + 60) % 360}, 85%, 40%, 0)`);
 
+        ctx.beginPath();
+        ctx.fillStyle = grad;
+        ctx.arc(p.x, p.y, gradOuter, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rWorld * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${hue}, 95%, 88%, 0.92)`;
+        ctx.fill();
+
+        // Spikes — plain stroke, no compositeOperation 'lighter' (cheaper).
+        ctx.strokeStyle = `hsla(${hue}, 95%, 70%, ${(0.55 + 0.35 * Math.sin(t * 4)).toFixed(3)})`;
+        ctx.lineWidth = 0.9 / Math.max(baseScaleX * zoom, baseScaleY * zoom);
+        const spikeR = rWorld * (3.0 + 0.4 * Math.sin(t * 3.5));
+        const spike = (ang: number) => {
           ctx.beginPath();
-          ctx.fillStyle = grad;
-          ctx.arc(p.x, p.y, gradOuter, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, rWorld * 0.6, 0, Math.PI * 2);
-          ctx.fillStyle = `hsla(${hue}, 95%, 88%, 0.92)`;
-          ctx.fill();
-
-          // Spikes — plain stroke, no compositeOperation 'lighter' (cheaper).
-          ctx.strokeStyle = `hsla(${hue}, 95%, 70%, ${(0.55 + 0.35 * Math.sin(t * 4)).toFixed(3)})`;
-          ctx.lineWidth = 0.9 / Math.max(baseScaleX * zoom, baseScaleY * zoom);
-          const spikeR = rWorld * (3.0 + 0.4 * Math.sin(t * 3.5));
-          const spike = (ang: number) => {
-            ctx.beginPath();
-            ctx.moveTo(p.x - Math.cos(ang) * spikeR, p.y - Math.sin(ang) * spikeR);
-            ctx.lineTo(p.x + Math.cos(ang) * spikeR, p.y + Math.sin(ang) * spikeR);
-            ctx.stroke();
-          };
-          spike(0); spike(Math.PI / 2); spike(Math.PI / 4); spike(-Math.PI / 4);
-        }
+          ctx.moveTo(p.x - Math.cos(ang) * spikeR, p.y - Math.sin(ang) * spikeR);
+          ctx.lineTo(p.x + Math.cos(ang) * spikeR, p.y + Math.sin(ang) * spikeR);
+          ctx.stroke();
+        };
+        spike(0); spike(Math.PI / 2); spike(Math.PI / 4); spike(-Math.PI / 4);
       }
       ctx.restore();
 
@@ -397,9 +438,10 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
     }
 
     return () => { if (raf) cancelAnimationFrame(raf); };
-  }, [selected, pts, transform, canvasW, canvasH, dpr, zoom]);
+  }, [selected, selectedPoint, pts.length, transform, canvasW, canvasH, dpr, zoom]);
 
-  // Interaction (attach to overlay canvas — it sits on top).
+  // Interaction listeners — attached once on mount. Volatile state is read
+  // through the refs above so we don't tear down/reattach on every pan.
   useEffect(() => {
     const canvas = overlayCanvasRef.current;
     if (!canvas) return;
@@ -430,17 +472,18 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const { baseScaleX, baseScaleY, centerX, centerY } = transform;
+      const { baseScaleX, baseScaleY, centerX, centerY } = transformRef.current;
+      const z = zoomRef.current;
       let best: ProjectedPoint | null = null;
       let bestD = 9e9;
-      for (const p of pts) {
-        const sx = centerX + p.x * baseScaleX * zoom;
-        const sy = centerY + p.y * baseScaleY * zoom;
+      for (const p of ptsRef.current) {
+        const sx = centerX + p.x * baseScaleX * z;
+        const sy = centerY + p.y * baseScaleY * z;
         const dx = sx - x; const dy = sy - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 8 && dist < bestD) { bestD = dist; best = p; }
       }
-      if (best) onSelect(best.jname);
+      if (best) onSelectRef.current(best.jname);
     };
 
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -459,7 +502,7 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
       canvas.removeEventListener('dblclick', onDbl);
       canvas.removeEventListener('click', onClick);
     };
-  }, [pts, transform, zoom, onSelect]);
+  }, []);
 
   const onZoomIn = useCallback(() => setZoom(z => Math.min(z * 1.25, 10)), []);
   const onZoomOut = useCallback(() => setZoom(z => Math.max(z / 1.25, 0.4)), []);

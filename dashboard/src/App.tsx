@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { loadDatabase, loadConsolidated, loadDictionary, loadCutouts } from './api';
 const DataTables = lazy(() => import('./components/DataTables').then(m => ({ default: m.DataTables })));
 const CutoutGrid = lazy(() => import('./components/CutoutGrid').then(m => ({ default: m.CutoutGrid })));
-import { FiltersDrawer, FiltersState } from './components/FiltersDrawer';
+import { FiltersDrawer, FiltersState, NumericFilterConfig } from './components/FiltersDrawer';
 import { ObjectsTable } from './components/ObjectsTable';
 import { SkyMap } from './components/SkyMap';
 import { useDebounce } from './hooks/useDebounce';
@@ -26,7 +26,7 @@ const NUMERIC_FIELDS = [
   { key: 'DEC', label: 'DEC' },
   { key: 'z_L', label: 'z_L' },
   { key: 'z_S', label: 'z_S' }
-] as const;
+] as const satisfies readonly NumericFilterConfig[];
 
 const EMPTY_FILTERS: FiltersState = { jnameSearch: '', references: [], numeric: {} };
 
@@ -336,7 +336,7 @@ const App: React.FC = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         allReferences={allReferences}
-        numericFields={NUMERIC_FIELDS as unknown as { key: string; label: string }[]}
+        numericFields={NUMERIC_FIELDS}
         domain={domain}
         value={filters}
         onChange={setFilters}

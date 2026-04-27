@@ -13,7 +13,8 @@ const buildDataUrl = (file: string) => {
 async function fetchJson<T>(file: string): Promise<T> {
   const url = buildDataUrl(file);
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
 
   try {
     const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
@@ -23,7 +24,7 @@ async function fetchJson<T>(file: string): Promise<T> {
     }
     return await res.json();
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (err instanceof Error && err.name === 'AbortError' && timedOut) {
       throw new Error(`Request timeout for ${url}`);
     }
     throw err;
@@ -46,7 +47,9 @@ export const loadCutouts = (): Promise<CutoutRecord[]> => fetchJson<CutoutRecord
 const env = (import.meta as { env?: Record<string, string> }).env || {};
 const RAW_ENDPOINT: string | undefined = env.VITE_MINIO_ENDPOINT;
 const ENDPOINT_SCHEME: string = (env.VITE_MINIO_SCHEME || 'https').replace(/:$/, '');
-const DEBUG_CUTOUTS = !!env.VITE_DEBUG_CUTOUTS;
+// VITE_* env vars come through as strings — `!!env.VITE_DEBUG_CUTOUTS` would
+// treat "false" as truthy. Accept only an explicit opt-in.
+const DEBUG_CUTOUTS = ['true', '1'].includes((env.VITE_DEBUG_CUTOUTS || '').trim().toLowerCase());
 
 export const buildCutoutUrl = (objectKey: string): string => {
   const cleaned = objectKey.trim().replace(/^\/+/, '');

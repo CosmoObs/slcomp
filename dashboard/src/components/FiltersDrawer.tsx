@@ -19,7 +19,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   allReferences: string[];
-  numericFields: NumericFilterConfig[];
+  numericFields: readonly NumericFilterConfig[];
   domain: Record<string, { min: number; max: number }>; // key -> domain
   value: FiltersState;
   onChange: (v: FiltersState) => void;

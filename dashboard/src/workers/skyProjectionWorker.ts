@@ -60,13 +60,15 @@ function projectObjects(objects: SkyObject[]): ProjectedPoint[] {
   return result;
 }
 
+declare const self: DedicatedWorkerGlobalScope;
+
 self.onmessage = (e: MessageEvent) => {
   const { objects, requestId } = e.data as { objects: SkyObject[]; requestId: number };
   try {
     const projectedPoints = projectObjects(objects);
-    (self as unknown as Worker).postMessage({ requestId, projectedPoints, success: true });
+    self.postMessage({ requestId, projectedPoints, success: true });
   } catch (error) {
-    (self as unknown as Worker).postMessage({
+    self.postMessage({
       requestId,
       error: error instanceof Error ? error.message : 'Unknown error',
       success: false

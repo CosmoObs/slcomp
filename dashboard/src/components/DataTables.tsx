@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Typography } from '@mui/material';
 import type { DataRecord, ConsolidatedRecord } from '../types';
 
@@ -24,11 +24,22 @@ const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(50);
 
+  // Union of keys across all rows (heterogeneous rows can introduce columns
+  // not present on the first one). Then drop columns that are empty everywhere.
   const columns = useMemo(() => {
     if (rows.length === 0) return [] as string[];
-    const keys = Object.keys(rows[0]).filter(k => k !== 'id');
-    return keys.filter(k => !rows.every(r => isEmptyVal(r[k])));
+    const keySet = new Set<string>();
+    for (const r of rows) {
+      for (const k of Object.keys(r)) if (k !== 'id') keySet.add(k);
+    }
+    return Array.from(keySet).filter(k => !rows.every(r => isEmptyVal(r[k])));
   }, [rows]);
+
+  // Clamp `page` whenever `rows` shrinks past the current page.
+  useEffect(() => {
+    const lastPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [rows.length, pageSize, page]);
 
   const pageRows = useMemo(() => {
     const start = page * pageSize;

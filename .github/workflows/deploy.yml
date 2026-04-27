@@ -56,9 +56,11 @@ jobs:
         uses: actions/configure-pages@v4
         
       - name: Build
+        env:
+          BASE_PATH: /slcomp/
+          VITE_MINIO_ENDPOINT: ${{ secrets.VITE_MINIO_ENDPOINT }}
         run: |
           cd dashboard
-          export BASE_PATH=/slcomp/
           npm run build
           
       - name: Upload artifact

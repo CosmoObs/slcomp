@@ -74,10 +74,14 @@ export const buildCutoutUrl = (objectKey: string): string => {
   return url;
 };
 
-// Cache of blob URLs keyed by source URL. We intentionally do NOT revoke
-// these on component unmount: react-query keeps the URL string in its cache
-// for `staleTime`, and revoking would leave broken images on remount.
-// The map bounds growth — same URL fetched twice reuses the same blob.
+// Cache of blob URLs keyed by source URL. Lifetime is the page session: we
+// intentionally never call URL.revokeObjectURL because react-query keeps the
+// blob URL string in its cache for `staleTime` (and longer for `gcTime`), so
+// revoking on unmount would leave broken images on remount. With typical
+// cutout sizes (~50–200 KB JPEGs) and bounded selections per session this
+// is an acceptable trade. If a session needs to load thousands of unique
+// cutouts, add an LRU here that coordinates revocation with react-query's
+// QueryCache events.
 const blobCache = new Map<string, string>();
 
 export const getCutoutObject = async (objectKey: string): Promise<string | null> => {

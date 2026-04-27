@@ -455,6 +455,7 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
       isPanningRef.current = true;
       lastPosRef.current = { x: e.clientX, y: e.clientY };
       canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = 'grabbing';
     };
     const onMove = (e: PointerEvent) => {
       if (!isPanningRef.current) return;
@@ -465,7 +466,8 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
     };
     const onUp = (e: PointerEvent) => {
       isPanningRef.current = false;
-      canvas.releasePointerCapture(e.pointerId);
+      try { canvas.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+      canvas.style.cursor = 'grab';
     };
     const onDbl = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
     const onClick = (e: MouseEvent) => {
@@ -520,7 +522,7 @@ export const SkyMap: React.FC<Props> = memo(({ objects, height = 360, width = 60
         />
         <canvas
           ref={overlayCanvasRef}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: isPanningRef.current ? 'grabbing' : 'grab' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', cursor: 'grab' }}
         />
         {!pts.length && !isProjecting && (
           <Typography variant="caption" sx={{ position: 'absolute', top: '50%', left: 0, width: '100%', textAlign: 'center', transform: 'translateY(-50%)', color: 'text.secondary' }}>No RA/DEC available to plot.</Typography>

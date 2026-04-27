@@ -38,7 +38,9 @@ const VirtualizedListInner = <T,>({
   }, []);
 
   // Bring scrollToIndex into view if outside the visible range. Stale indexes
-  // (e.g. selection survived a list shrink) are silently ignored.
+  // (e.g. selection survived a list shrink) are silently ignored. Sync the
+  // scrollTop state explicitly: relying on the browser-fired scroll event
+  // can be racy in rare cases.
   useEffect(() => {
     if (scrollToIndex == null || scrollToIndex < 0 || scrollToIndex >= items.length) return;
     const el = containerRef.current;
@@ -47,10 +49,12 @@ const VirtualizedListInner = <T,>({
     const bottom = top + itemHeight;
     const viewTop = el.scrollTop;
     const viewBottom = viewTop + containerHeight;
-    if (top < viewTop) {
-      el.scrollTop = top;
-    } else if (bottom > viewBottom) {
-      el.scrollTop = bottom - containerHeight;
+    let next: number | null = null;
+    if (top < viewTop) next = top;
+    else if (bottom > viewBottom) next = bottom - containerHeight;
+    if (next != null && next !== viewTop) {
+      el.scrollTop = next;
+      setScrollTop(el.scrollTop);
     }
   }, [scrollToIndex, itemHeight, containerHeight, items.length]);
 

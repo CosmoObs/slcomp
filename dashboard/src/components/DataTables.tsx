@@ -1,6 +1,5 @@
-import React from 'react';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Box, Typography } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Typography } from '@mui/material';
 import type { DataRecord, ConsolidatedRecord } from '../types';
 
 interface Props {
@@ -8,79 +7,108 @@ interface Props {
   consolidated: ConsolidatedRecord[];
 }
 
-const isAllEmpty = (rows: Record<string, unknown>[], key: string) => {
-  return rows.every(r => {
-    const v = r[key];
-    return v === null || v === undefined || v === '';
-  });
+const isEmptyVal = (v: unknown) => v === null || v === undefined || v === '';
+
+const formatCell = (v: unknown): string => {
+  if (isEmptyVal(v)) return '';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toString();
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
 };
 
-const autoCols = (rows: Record<string, unknown>[]): GridColDef[] => {
-  if(!rows || rows.length === 0) return [];
-  const keys = Object.keys(rows[0]).filter(k => k !== 'id');
-  const kept = keys.filter(k => !isAllEmpty(rows, k));
-  return kept.map((k) => ({
-    field: k,
-    headerName: k,
-    flex: 1,
-    minWidth: 120,
-    headerAlign: 'center',
-    align: 'center'
-  }));
+interface SimpleTableProps {
+  rows: Record<string, unknown>[];
+}
+
+const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
+
+  const columns = useMemo(() => {
+    if (rows.length === 0) return [] as string[];
+    const keys = Object.keys(rows[0]).filter(k => k !== 'id');
+    return keys.filter(k => !rows.every(r => isEmptyVal(r[k])));
+  }, [rows]);
+
+  const pageRows = useMemo(() => {
+    const start = page * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, page, pageSize]);
+
+  if (rows.length === 0) {
+    return <Typography variant="body2" color="text.secondary">No rows.</Typography>;
+  }
+
+  return (
+    <Box sx={{ width: '100%', border: '1px solid rgba(90,170,200,0.25)', borderRadius: 2, overflow: 'hidden' }}>
+      <TableContainer sx={{ maxHeight: 480 }}>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              {columns.map(c => (
+                <TableCell
+                  key={c}
+                  align="center"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: 12,
+                    background: '#0f1c27',
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {c}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {pageRows.map((r, i) => (
+              <TableRow
+                key={i}
+                sx={{
+                  '&:nth-of-type(even)': { backgroundColor: 'rgba(255,255,255,0.02)' },
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' }
+                }}
+              >
+                {columns.map(c => (
+                  <TableCell
+                    key={c}
+                    align="center"
+                    sx={{ fontSize: 12, borderBottom: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'nowrap' }}
+                  >
+                    {formatCell(r[c])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        component="div"
+        count={rows.length}
+        page={page}
+        onPageChange={(_, p) => setPage(p)}
+        rowsPerPage={pageSize}
+        onRowsPerPageChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(0); }}
+        rowsPerPageOptions={[25, 50, 100]}
+        sx={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+      />
+    </Box>
+  );
 };
 
 export const DataTables: React.FC<Props> = ({ database, consolidated }) => {
-  const dbCols = autoCols(database);
-  const consCols = autoCols(consolidated);
   return (
     <Box display="flex" flexDirection="column" gap={6}>
       <Box>
-        <Typography variant="h6" sx={{ mb: 1, textAlign:'left' }}>Full Dataset Record</Typography>
-        <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <DataGrid
-            autoHeight
-            disableColumnMenu
-            disableRowSelectionOnClick
-            density="compact"
-            rows={database.map((r:DataRecord,i:number)=>({id:i,...r}))}
-            columns={dbCols}
-            getRowId={(r: Record<string, unknown> & { id: number })=>r.id}
-            rowSelection={false}
-            initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } } }}
-            sx={{
-              '& .MuiDataGrid-cell': { justifyContent: 'center' },
-              '& .MuiDataGrid-columnHeaders': { background: 'rgba(255,255,255,0.04)' },
-              '& .MuiDataGrid-columnHeaderTitle': { fontWeight: 600 },
-              '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: 'rgba(255,255,255,0.02)' },
-              border: '1px solid rgba(90,170,200,0.25)',
-              borderRadius: 2
-            }}
-          />
-        </Box>
+        <Typography variant="h6" sx={{ mb: 1, textAlign: 'left' }}>Full Dataset Record</Typography>
+        <SimpleTable rows={database as Record<string, unknown>[]} />
       </Box>
       <Box>
-        <Typography variant="h6" sx={{ mb: 1, textAlign:'left' }}>Consolidated Parameters</Typography>
-        <Box sx={{ width: '100%', overflowX: 'auto' }}>
-          <DataGrid
-            autoHeight
-            disableColumnMenu
-            disableRowSelectionOnClick
-            density="compact"
-            rows={consolidated.map((r:ConsolidatedRecord,i:number)=>({id:i,...r}))}
-            columns={consCols}
-            getRowId={(r: Record<string, unknown> & { id: number })=>r.id}
-            rowSelection={false}
-            initialState={{ pagination: { paginationModel: { pageSize: 50, page: 0 } } }}
-            sx={{
-              '& .MuiDataGrid-cell': { justifyContent: 'center' },
-              '& .MuiDataGrid-columnHeaders': { background: 'rgba(255,255,255,0.04)' },
-              '& .MuiDataGrid-columnHeaderTitle': { fontWeight: 600 },
-              '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: 'rgba(255,255,255,0.02)' },
-              border: '1px solid rgba(90,170,200,0.25)',
-              borderRadius: 2
-            }}
-          />
-        </Box>
+        <Typography variant="h6" sx={{ mb: 1, textAlign: 'left' }}>Consolidated Parameters</Typography>
+        <SimpleTable rows={consolidated as Record<string, unknown>[]} />
       </Box>
     </Box>
   );

@@ -1,7 +1,7 @@
-import React, { memo, useEffect } from 'react';
+import React, { memo } from 'react';
 import { Box, Grid, Typography, Paper, Skeleton } from '@mui/material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getCutoutObject, revokeBlobUrl } from '../api';
+import { useQuery } from '@tanstack/react-query';
+import { getCutoutObject } from '../api';
 import type { CutoutRecord } from '../types';
 
 interface Props {
@@ -10,15 +10,6 @@ interface Props {
 }
 
 export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
-  // Ao montar, invalida queries dos cutouts para garantir novo fetch
-  const queryClient = useQueryClient();
-  React.useEffect(() => {
-    if (cutouts && cutouts.length > 0) {
-      cutouts.forEach(c => {
-        queryClient.invalidateQueries({ queryKey: ['cutout', c.file_path] });
-      });
-    }
-  }, [cutouts, queryClient]);
   return (
     <Box mt={2}>
       <Typography variant="h6" gutterBottom>{survey}</Typography>
@@ -36,66 +27,45 @@ export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
 CutoutGrid.displayName = 'CutoutGrid';
 
 const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
+  // Blob URLs returned by getCutoutObject are kept alive for the session via
+  // the module-level cache in api.ts — we deliberately don't revoke on
+  // unmount to avoid breaking images that react-query will hand back from
+  // its cache when the component remounts.
   const { data, isLoading, error } = useQuery({
     queryKey: ['cutout', record.file_path],
     queryFn: () => getCutoutObject(record.file_path),
-    staleTime: 5 * 60 * 1000, // 5 minutos de cache
-    retry: 1, // Only retry once for ngrok issues
+    staleTime: 5 * 60 * 1000,
+    retry: 1
   });
-  
-  // Clean up blob URLs when component unmounts or data changes
-  useEffect(() => {
-    return () => {
-      if (data) {
-        revokeBlobUrl(data);
-      }
-    };
-  }, [data]);
-  
+
   return (
-    <Paper sx={{ p: 1.5, textAlign: 'center', background: 'linear-gradient(145deg, rgba(40,65,75,0.6), rgba(25,40,50,0.4))', border: '1px solid rgba(90,170,200,0.3)' }}>
-      <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing:0.5 }}>{record.band}</Typography>
-      <Box mt={1} sx={{ position:'relative', width:'100%', maxWidth:160, mx:'auto' }}>
-        <Box sx={{ position:'relative', width:'100%', pt:'100%', borderRadius:2, overflow:'hidden', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(90,170,200,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        {isLoading && <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position:'absolute', inset:0 }} />}
-        {!isLoading && data && <img
-          src={data}
-          loading="lazy"
-          decoding="async"
-          alt={record.band + ' cutout'}
-          style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'contain', imageRendering:'auto' }}
-          onError={(e)=>{
-            const img = e.currentTarget;
-            if(img.dataset.fallbackTried) return;
-            img.dataset.fallbackTried = '1';
-            
-            // For blob URLs, we can't retry with different parameters
-            if (img.src.startsWith('blob:')) {
-              return;
-            }
-            
-            // For ngrok/zrok URLs, try adding the bypass parameters as query string
-            if (img.src.includes('ngrok') || img.src.includes('zrok')) {
-              const url = new URL(img.src);
-              url.searchParams.set('skip_zrok_interstitial', 'true');
-              img.src = url.toString();
-              return;
-            }
-            
-            // Extension fallback: try .jpeg -> .png -> .jpg
-            const order = ['.jpeg','.png','.jpg'];
-            const current = order.find(ext => img.src.toLowerCase().includes(ext));
-            const nextExt = current ? order[(order.indexOf(current)+1)%order.length] : null;
-            if(nextExt){
-              const newSrc = img.src.replace(/\.(jpeg|png|jpg)(?=($|\?))/i, nextExt);
-              if(newSrc !== img.src) img.src = newSrc;
-            }
-          }} />}
-        {!isLoading && !data && !error && <Typography variant="caption" color="text.secondary" sx={{ textAlign:'center', px:0.5, position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>No image</Typography>}
-        {error && <Typography variant="caption" color="error" sx={{ textAlign:'center', px:0.5, position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>Error</Typography>}
+    <Paper sx={{ p: 1.5, textAlign: 'center' }}>
+      <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>{record.band}</Typography>
+      <Box mt={1} sx={{ position: 'relative', width: '100%', maxWidth: 160, mx: 'auto' }}>
+        <Box sx={{ position: 'relative', width: '100%', pt: '100%', borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(90,170,200,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {isLoading && <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position: 'absolute', inset: 0 }} />}
+          {!isLoading && data && (
+            <img
+              src={data}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              alt={record.band + ' cutout'}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          )}
+          {!isLoading && !data && !error && (
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', px: 0.5, position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              No image
+            </Typography>
+          )}
+          {error && (
+            <Typography variant="caption" color="error" sx={{ textAlign: 'center', px: 0.5, position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              Error
+            </Typography>
+          )}
         </Box>
       </Box>
-      {error && <Typography variant="caption" color="error" sx={{ display:'block', mt:0.5 }}>Err</Typography>}
     </Paper>
   );
 });

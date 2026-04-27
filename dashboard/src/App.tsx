@@ -4,13 +4,13 @@ import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { useQuery } from '@tanstack/react-query';
 import { loadDatabase, loadConsolidated, loadDictionary, loadCutouts } from './api';
-const DataTables = lazy(()=> import('./components/DataTables').then(m => ({ default: m.DataTables })));
-const CutoutGrid = lazy(()=> import('./components/CutoutGrid').then(m => ({ default: m.CutoutGrid })));
-import { FiltersDrawer, FiltersState } from './components/FiltersDrawer';
+const DataTables = lazy(() => import('./components/DataTables').then(m => ({ default: m.DataTables })));
+const CutoutGrid = lazy(() => import('./components/CutoutGrid').then(m => ({ default: m.CutoutGrid })));
+import { FiltersDrawer, FiltersState, NumericFilterConfig } from './components/FiltersDrawer';
 import { ObjectsTable } from './components/ObjectsTable';
 import { SkyMap } from './components/SkyMap';
 import { useDebounce } from './hooks/useDebounce';
-import type { CutoutRecord } from './types';
+import type { CutoutRecord, DataRecord, ConsolidatedRecord } from './types';
 
 interface SkyMapObject {
   JNAME: string;
@@ -20,6 +20,28 @@ interface SkyMapObject {
   z_S?: number | null;
   [key: string]: unknown;
 }
+
+const NUMERIC_FIELDS = [
+  { key: 'RA', label: 'RA' },
+  { key: 'DEC', label: 'DEC' },
+  { key: 'z_L', label: 'z_L' },
+  { key: 'z_S', label: 'z_S' }
+] as const satisfies readonly NumericFilterConfig[];
+
+const EMPTY_FILTERS: FiltersState = { jnameSearch: '', references: [], numeric: {} };
+
+const isFiltersEmpty = (f: FiltersState) =>
+  !f.jnameSearch && f.references.length === 0 &&
+  Object.values(f.numeric).every(v => v == null);
+
+const toNum = (x: unknown): number | null => {
+  if (typeof x === 'number') return isNaN(x) ? null : x;
+  if (typeof x === 'string') {
+    const v = parseFloat(x);
+    return isNaN(v) ? null : v;
+  }
+  return null;
+};
 
 function tabProps(index: number) {
   return { id: `tab-${index}`, 'aria-controls': `tabpanel-${index}` };
@@ -31,179 +53,148 @@ const App: React.FC = () => {
   const { data: dictionary = {} as Record<string, unknown>, isLoading: dictLoading, error: dictError } = useQuery({ queryKey: ['dict'], queryFn: loadDictionary });
   const { data: cutouts = [], isLoading: cutoutsLoading, error: cutoutsError } = useQuery({ queryKey: ['cutouts'], queryFn: loadCutouts });
 
-  const references = useMemo(()=> Object.keys(dictionary), [dictionary]);
+  const references = useMemo(() => Object.keys(dictionary), [dictionary]);
   const [jname, setJName] = useState<string>('');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const initialFilters: FiltersState = useMemo(() => ({ 
-    jnameSearch: '', 
-    references: [], 
-    numeric: {} 
-  }), []);
-  const [filters, setFilters] = useState<FiltersState>(initialFilters);
+  const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS);
   const [tab, setTab] = useState(0);
-  
-  // Derive numeric domains for selected fields (memoized with cache)
-  const numericFields = useMemo(() => [
-    { key: 'RA', label: 'RA' },
-    { key: 'DEC', label: 'DEC' },
-    { key: 'z_L', label: 'z_L' },
-    { key: 'z_S', label: 'z_S' }
-  ], []);
 
-  const domain = useMemo(()=>{
-    if (!database.length) return {};
-    
-    const acc: Record<string,{min:number;max:number}> = {};
-    numericFields.forEach(f=>{
-      const vals: number[] = [];
-      // Sample every 10th record for large datasets to speed up domain calculation
-      const step = database.length > 10000 ? 10 : 1;
-      for(let i = 0; i < database.length; i += step){
-        const r = database[i];
-        if(!r) continue;
-        let v: unknown = r[f.key];
-        if(typeof v === 'string'){ const parsed = parseFloat(v); if(!isNaN(parsed)) v = parsed; }
-        if(typeof v === 'number' && !isNaN(v)) vals.push(v);
+  // Single pass: build unique baseObjects + per-field [min,max] domain.
+  // Loop-based min/max avoids stack overflow on Math.min(...) for large arrays.
+  const { baseObjects, domain } = useMemo(() => {
+    const seen = new Map<string, SkyMapObject>();
+    const dom: Record<string, { min: number; max: number }> = {};
+    const initDom = (k: string, v: number) => {
+      const d = dom[k];
+      if (!d) dom[k] = { min: v, max: v };
+      else { if (v < d.min) d.min = v; if (v > d.max) d.max = v; }
+    };
+
+    for (const r of database) {
+      if (!r?.JNAME) continue;
+      const RA = toNum(r.RA);
+      const DEC = toNum(r.DEC);
+      const z_L = toNum(r.z_L);
+      const z_S = toNum(r.z_S);
+      if (RA != null) initDom('RA', RA);
+      if (DEC != null) initDom('DEC', DEC);
+      if (z_L != null) initDom('z_L', z_L);
+      if (z_S != null) initDom('z_S', z_S);
+
+      const cur = seen.get(r.JNAME);
+      if (!cur) {
+        seen.set(r.JNAME, { JNAME: r.JNAME, RA, DEC, z_L, z_S });
+      } else {
+        if (cur.RA == null) cur.RA = RA;
+        if (cur.DEC == null) cur.DEC = DEC;
+        if (cur.z_L == null) cur.z_L = z_L;
+        if (cur.z_S == null) cur.z_S = z_S;
       }
-      if(vals.length){ acc[f.key] = { min: Math.min(...vals), max: Math.max(...vals) }; }
-    });
-    return acc;
-  }, [database, numericFields]);
+    }
+    return { baseObjects: Array.from(seen.values()), domain: dom };
+  }, [database]);
 
-  // Precompute mapping: JNAME -> set of references (for fast filtering) - optimized
-  const jnameToRefs = useMemo(()=> {
-    if (!references.length) return {};
-    
-    const map: Record<string, Set<string>> = {};
-    for(const ref of references){
+  // JNAME -> set of references (built once per dictionary).
+  const jnameToRefs = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const ref of references) {
       const entry = dictionary[ref] as { JNAME?: string[] };
-      if(!entry || !Array.isArray(entry.JNAME)) continue;
-      for(const jn of entry.JNAME){
-        if (!map[jn]) map[jn] = new Set();
-        map[jn].add(ref);
+      if (!entry || !Array.isArray(entry.JNAME)) continue;
+      for (const jn of entry.JNAME) {
+        let s = map.get(jn);
+        if (!s) { s = new Set(); map.set(jn, s); }
+        s.add(ref);
       }
     }
     return map;
   }, [references, dictionary]);
 
-  // Unique base objects (collapse duplicates by JNAME) - optimized with early returns
-  const baseObjects = useMemo(()=> {
-    if (!database.length) return [];
-    
-    const toNum = (x: unknown): number | null => {
-      if(typeof x === 'number' && !isNaN(x)) return x;
-      if(typeof x === 'string'){
-        const v = parseFloat(x.trim());
-        return isNaN(v) ? null : v;
-      }
-      return null;
-    };
-    const seen: Record<string, SkyMapObject> = {};
-    
-    for(const r of database){
-      if(!r?.JNAME) continue;
-      
-      if(!seen[r.JNAME]){
-        const RA = toNum(r.RA);
-        const DEC = toNum(r.DEC);
-        const z_L = toNum(r.z_L);
-        const z_S = toNum(r.z_S);
-        seen[r.JNAME] = { JNAME: r.JNAME, RA, DEC, z_L, z_S };
-      } else {
-        // Only update null values to avoid unnecessary work
-        const tgt = seen[r.JNAME];
-        if(tgt.RA == null) tgt.RA = toNum(r.RA);
-        if(tgt.DEC == null) tgt.DEC = toNum(r.DEC);
-        if(tgt.z_L == null) tgt.z_L = toNum(r.z_L);
-        if(tgt.z_S == null) tgt.z_S = toNum(r.z_S);
-      }
+  // Indexes for O(1) lookup of per-JNAME slices.
+  const dbByJname = useMemo(() => {
+    const m = new Map<string, DataRecord[]>();
+    for (const r of database) {
+      if (!r?.JNAME) continue;
+      const arr = m.get(r.JNAME);
+      if (arr) arr.push(r); else m.set(r.JNAME, [r]);
     }
-    return Object.values(seen);
+    return m;
   }, [database]);
 
-  // Numeric filters keys to iterate quickly
-  const activeNumericKeys = useMemo(()=> Object.entries(filters.numeric).filter(([_,v])=> !!v).map(([k])=> k), [filters.numeric]);
+  const consByJname = useMemo(() => {
+    const m = new Map<string, ConsolidatedRecord[]>();
+    for (const r of consolidated) {
+      if (!r?.JNAME) continue;
+      const arr = m.get(r.JNAME);
+      if (arr) arr.push(r); else m.set(r.JNAME, [r]);
+    }
+    return m;
+  }, [consolidated]);
 
-  // Debounce search text to avoid excessive filtering
-  const debouncedSearch = useDebounce(filters.jnameSearch, 300);
+  const cutoutsByJname = useMemo(() => {
+    const m = new Map<string, CutoutRecord[]>();
+    for (const c of cutouts) {
+      if (!c?.JNAME) continue;
+      const arr = m.get(c.JNAME);
+      if (arr) arr.push(c); else m.set(c.JNAME, [c]);
+    }
+    return m;
+  }, [cutouts]);
 
-  // Optimized filtering with early returns and better algorithms
-  const filteredObjects = useMemo(()=> {
-    if(!baseObjects.length) return [];
-    
+  const activeNumericKeys = useMemo(
+    () => Object.entries(filters.numeric).filter(([, v]) => !!v).map(([k]) => k),
+    [filters.numeric]
+  );
+
+  // Single debounce on the search term — drawer no longer pre-debounces.
+  const debouncedSearch = useDebounce(filters.jnameSearch, 250);
+
+  const filteredObjects = useMemo(() => {
+    if (!baseObjects.length) return [];
     const search = debouncedSearch.trim().toLowerCase();
     const useRefs = filters.references.length > 0;
     const refsSet = useRefs ? new Set(filters.references) : null;
-    const hasNumericFilters = activeNumericKeys.length > 0;
-    
-    return baseObjects.filter((r: SkyMapObject)=> {
-      if(!r?.JNAME) return false;
-      
-      // Text search first (cheapest filter)
-      if(search && !String(r.JNAME).toLowerCase().includes(search)) return false;
-      
-      // Reference filter
-      if(useRefs){
-        const rs = jnameToRefs[String(r.JNAME)];
-        if(!rs) return false;
-        let hasMatchingRef = false;
-        for(const ref of rs){ 
-          if(refsSet!.has(ref)){ 
-            hasMatchingRef = true; 
-            break; 
-          } 
-        }
-        if(!hasMatchingRef) return false;
+    const hasNumeric = activeNumericKeys.length > 0;
+
+    return baseObjects.filter((r) => {
+      if (!r?.JNAME) return false;
+      if (search && !String(r.JNAME).toLowerCase().includes(search)) return false;
+      if (useRefs) {
+        const rs = jnameToRefs.get(String(r.JNAME));
+        if (!rs) return false;
+        let ok = false;
+        for (const ref of rs) { if (refsSet!.has(ref)) { ok = true; break; } }
+        if (!ok) return false;
       }
-      
-      // Numeric filters (most expensive, do last)
-      if(hasNumericFilters){
-        for(const k of activeNumericKeys){
+      if (hasNumeric) {
+        for (const k of activeNumericKeys) {
           const range = filters.numeric[k]!;
           const val = r[k] as number;
-          if(typeof val !== 'number' || val < range[0] || val > range[1]) return false;
+          if (typeof val !== 'number' || val < range[0] || val > range[1]) return false;
         }
       }
-      
       return true;
     });
   }, [baseObjects, debouncedSearch, filters.references, filters.numeric, jnameToRefs, activeNumericKeys]);
 
-  // Selected object dependent data
-  const filteredDb = useMemo(()=> database.filter(r=> r.JNAME === jname), [database, jname]);
-  const filteredCons = useMemo(()=> consolidated.filter(r=> r.JNAME === jname), [consolidated, jname]);
-  const filteredCutouts = useMemo(()=> cutouts.filter(c=> c.JNAME === jname), [cutouts, jname]);
-  const surveys = useMemo(()=> Array.from(new Set(filteredCutouts.map(c=> String(c.survey)))).sort(), [filteredCutouts]);
+  const filteredDb = useMemo(() => (jname ? dbByJname.get(jname) ?? [] : []), [dbByJname, jname]);
+  const filteredCons = useMemo(() => (jname ? consByJname.get(jname) ?? [] : []), [consByJname, jname]);
+  const filteredCutouts = useMemo(() => (jname ? cutoutsByJname.get(jname) ?? [] : []), [cutoutsByJname, jname]);
+  const surveys = useMemo(() => Array.from(new Set(filteredCutouts.map(c => String(c.survey)))).sort(), [filteredCutouts]);
 
-  const resetFilters = useCallback(() => {
-    setFilters(initialFilters);
-  }, [initialFilters]);
+  const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
+  const handleDrawerToggle = useCallback(() => setDrawerOpen(p => !p), []);
+  const handleJNameSelect = useCallback((j: string) => setJName(j), []);
+  const handleJNameClear = useCallback(() => setJName(''), []);
+  const handleTabChange = useCallback((_: unknown, value: number) => setTab(value), []);
 
-  const handleDrawerToggle = useCallback(() => {
-    setDrawerOpen(prev => !prev);
-  }, []);
-
-  const handleJNameSelect = useCallback((jname: string) => {
-    setJName(jname);
-  }, []);
-
-  const handleJNameClear = useCallback(() => {
-    setJName('');
-  }, []);
-
-  const handleTabChange = useCallback((event: unknown, value: number) => {
-    setTab(value);
-  }, []);
-
-  const allReferences = useMemo(()=> references.sort(), [references]);
+  const allReferences = useMemo(() => [...references].sort(), [references]);
 
   const anyLoading = dbLoading || consLoading || dictLoading || cutoutsLoading;
   const anyError = dbError || consError || dictError || cutoutsError;
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
-  const panelHeight = isMdUp ? 360 : 300; // responsive height for map/table
+  const panelHeight = isMdUp ? 360 : 300;
 
-  // Show loading state early to improve perceived performance
   if (anyLoading && !database.length) {
     return (
       <Box sx={{ flexGrow: 1 }}>
@@ -213,8 +204,8 @@ const App: React.FC = () => {
           </Toolbar>
         </AppBar>
         <Container maxWidth="xl" sx={{ py: 3 }}>
-          <Paper sx={{ p:6, textAlign:'center', mb:3, background:'linear-gradient(135deg,#102028,#0c161c)' }}>
-            <CircularProgress size={40} sx={{ mb:2 }} />
+          <Paper sx={{ p: 6, textAlign: 'center', mb: 3 }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography variant="body2" color="text.secondary">Loading astronomical data...</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
               This may take a moment for large datasets
@@ -229,9 +220,8 @@ const App: React.FC = () => {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static" color="transparent" elevation={0}>
         <Toolbar>
-          {/* Logo SLComp à esquerda */}
-          <Box sx={{ display:'flex', alignItems:'center', mr:1 }}>
-            <img src="https://raw.githubusercontent.com/CosmoObs/slcomp/refs/heads/main/.figures/slcomp.png" alt="SLComp Logo" style={{ height:32, width:80, marginRight:8, borderRadius:1, background:'#000000ff' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+            <img src="https://raw.githubusercontent.com/CosmoObs/slcomp/refs/heads/main/.figures/slcomp.png" alt="SLComp Logo" style={{ height: 32, width: 80, marginRight: 8, borderRadius: 1, background: '#000' }} />
             <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
           </Box>
           <Box flexGrow={1} />
@@ -240,11 +230,10 @@ const App: React.FC = () => {
           </Tooltip>
           <Tooltip title="Reset Filters">
             <span>
-              <IconButton color="inherit" onClick={resetFilters} size="small" disabled={filters === initialFilters}><ClearAllIcon /></IconButton>
+              <IconButton color="inherit" onClick={resetFilters} size="small" disabled={isFiltersEmpty(filters)}><ClearAllIcon /></IconButton>
             </span>
           </Tooltip>
-          {/* Botão GitHub à direita */}
-          <Box sx={{ ml:2 }}>
+          <Box sx={{ ml: 2 }}>
             <Tooltip title="slcomp Repository">
               <IconButton
                 color="inherit"
@@ -253,9 +242,9 @@ const App: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 size="small"
-                sx={{ p:0.0 }}
+                sx={{ p: 0 }}
               >
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" style={{ height:28, width:28, borderRadius:'50%' }} />
+                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" style={{ height: 28, width: 28, borderRadius: '50%' }} />
               </IconButton>
             </Tooltip>
           </Box>
@@ -263,53 +252,51 @@ const App: React.FC = () => {
       </AppBar>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         {anyLoading && (
-          <Paper sx={{ p:6, textAlign:'center', mb:3, background:'linear-gradient(135deg,#102028,#0c161c)' }}>
-            <CircularProgress size={40} sx={{ mb:2 }} />
+          <Paper sx={{ p: 6, textAlign: 'center', mb: 3 }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography variant="body2" color="text.secondary">Loading data...</Typography>
           </Paper>
         )}
         {anyError && (
-          <Paper sx={{ p:4, mb:3, background:'linear-gradient(135deg,#281010,#1c0c0c)', border:'1px solid #552' }}>
+          <Paper sx={{ p: 4, mb: 3, background: 'linear-gradient(135deg,#281010,#1c0c0c)', border: '1px solid #552' }}>
             <Typography variant="h6" gutterBottom>Error loading data</Typography>
             <Typography variant="body2" color="text.secondary">{String(anyError)}</Typography>
           </Paper>
         )}
-        <Paper sx={{ p: 2, mb: 3, background: 'linear-gradient(135deg,#112029,#0d151b)' }}>
-          <Box display="flex" gap={2} alignItems="stretch" 
-               sx={{ flexDirection:{ xs:'column', md:'row' } }}>
-            <Box 
-              sx={{ 
-                flex: { xs:'1 1 auto', md:'0 0 260px' }, 
-                width:{ xs:'100%', md:260 }, 
-                display:'flex', 
-                flexDirection:'column', 
-                minHeight:0, 
-                height:{ md: panelHeight }
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Box display="flex" gap={2} alignItems="stretch" sx={{ flexDirection: { xs: 'column', md: 'row' } }}>
+            <Box
+              sx={{
+                flex: { xs: '1 1 auto', md: '0 0 260px' },
+                width: { xs: '100%', md: 260 },
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+                height: { md: panelHeight }
               }}
             >
-              <Box sx={{ flex:1, minHeight:0 }}>
-                <ObjectsTable 
-                  objects={filteredObjects} 
-                  onSelect={handleJNameSelect} 
-                  selected={jname} 
-                  fullHeight={isMdUp} 
-                  height={panelHeight} 
+              <Box sx={{ flex: 1, minHeight: 0 }}>
+                <ObjectsTable
+                  objects={filteredObjects}
+                  onSelect={handleJNameSelect}
+                  selected={jname}
+                  height={panelHeight}
                 />
               </Box>
             </Box>
             <Box flex={1} minWidth={0} sx={{ height: panelHeight }}>
-              <SkyMap 
-                objects={filteredObjects} 
-                selected={jname} 
-                onSelect={handleJNameSelect} 
-                height={panelHeight} 
+              <SkyMap
+                objects={filteredObjects}
+                selected={jname}
+                onSelect={handleJNameSelect}
+                height={panelHeight}
               />
             </Box>
           </Box>
-          {jname && <Box sx={{ mt:1, textAlign:'left' }}><Button size="small" onClick={handleJNameClear}>Clear selection</Button></Box>}
+          {jname && <Box sx={{ mt: 1, textAlign: 'left' }}><Button size="small" onClick={handleJNameClear}>Clear selection</Button></Box>}
         </Paper>
         {jname ? (
-          <Paper sx={{ background: 'linear-gradient(145deg,#14232c,#101a21)', p: 2 }}>
+          <Paper sx={{ p: 2 }}>
             <Tabs value={tab} onChange={handleTabChange} textColor="primary" indicatorColor="primary" variant="scrollable">
               <Tab label="Data" {...tabProps(0)} />
               <Tab label="Cutouts" {...tabProps(1)} />
@@ -327,10 +314,10 @@ const App: React.FC = () => {
                         const bl = String(b.band).toLowerCase();
                         const rank = (x: string) => x === 'lsb' ? 0 : x === 'trilogy' ? 1 : 2;
                         const ra = rank(al); const rb = rank(bl);
-                        if(ra !== rb) return ra - rb;
+                        if (ra !== rb) return ra - rb;
                         return al.localeCompare(bl);
                       };
-                      const cutoutsBySurvey = filteredCutouts.filter(c=> c.survey === s).sort(sortBands);
+                      const cutoutsBySurvey = filteredCutouts.filter(c => c.survey === s).sort(sortBands);
                       return <CutoutGrid key={s} survey={s} cutouts={cutoutsBySurvey} />;
                     })}
                   </Box>
@@ -339,7 +326,7 @@ const App: React.FC = () => {
             </Box>
           </Paper>
         ) : (
-          <Paper sx={{ p:4, textAlign:'center', background: 'linear-gradient(145deg,#14232c,#101a21)' }}>
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="h5" gutterBottom>Select an object</Typography>
             <Typography variant="body1" color="text.secondary">Use the panel for filters to refine your search and click on a JNAME in the table.</Typography>
           </Paper>
@@ -347,9 +334,9 @@ const App: React.FC = () => {
       </Container>
       <FiltersDrawer
         open={drawerOpen}
-        onClose={()=> setDrawerOpen(false)}
+        onClose={() => setDrawerOpen(false)}
         allReferences={allReferences}
-        numericFields={numericFields}
+        numericFields={NUMERIC_FIELDS}
         domain={domain}
         value={filters}
         onChange={setFilters}

@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 
 interface VirtualizedListProps<T = unknown> {
   items: T[];
@@ -6,6 +6,8 @@ interface VirtualizedListProps<T = unknown> {
   itemHeight: number;
   containerHeight: number;
   overscan?: number;
+  scrollToIndex?: number;
+  itemKey?: (item: T, index: number) => React.Key;
 }
 
 const VirtualizedListInner = <T,>({
@@ -13,9 +15,12 @@ const VirtualizedListInner = <T,>({
   renderItem,
   itemHeight,
   containerHeight,
-  overscan = 5
+  overscan = 5,
+  scrollToIndex,
+  itemKey
 }: VirtualizedListProps<T>) => {
-  const [scrollTop, setScrollTop] = React.useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const visibleIndices = useMemo(() => {
     const startIndex = Math.floor(scrollTop / itemHeight);
@@ -23,58 +28,64 @@ const VirtualizedListInner = <T,>({
       startIndex + Math.ceil(containerHeight / itemHeight),
       items.length - 1
     );
-
     const start = Math.max(0, startIndex - overscan);
     const end = Math.min(items.length - 1, endIndex + overscan);
-
     return { start, end };
   }, [scrollTop, itemHeight, containerHeight, items.length, overscan]);
 
-  const visibleItems = useMemo(() => {
-    const { start, end } = visibleIndices;
-    return items.slice(start, end + 1).map((item, index) => ({
-      item,
-      index: start + index
-    }));
-  }, [items, visibleIndices]);
-
-  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
   }, []);
 
-  const totalHeight = items.length * itemHeight;
+  // Bring scrollToIndex into view if outside the visible range. Stale indexes
+  // (e.g. selection survived a list shrink) are silently ignored. Sync the
+  // scrollTop state explicitly: relying on the browser-fired scroll event
+  // can be racy in rare cases.
+  useEffect(() => {
+    if (scrollToIndex == null || scrollToIndex < 0 || scrollToIndex >= items.length) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const top = scrollToIndex * itemHeight;
+    const bottom = top + itemHeight;
+    const viewTop = el.scrollTop;
+    const viewBottom = viewTop + containerHeight;
+    let next: number | null = null;
+    if (top < viewTop) next = top;
+    else if (bottom > viewBottom) next = bottom - containerHeight;
+    if (next != null && next !== viewTop) {
+      el.scrollTop = next;
+      setScrollTop(el.scrollTop);
+    }
+  }, [scrollToIndex, itemHeight, containerHeight, items.length]);
 
-  if (items.length < 20) {
-    // Para listas pequenas, não usar virtualização
-    return (
-      <div style={{ maxHeight: containerHeight, overflowY: 'auto' }}>
-        {items.map((item, index) => renderItem(item, index))}
-      </div>
-    );
-  }
+  const totalHeight = items.length * itemHeight;
+  const { start, end } = visibleIndices;
 
   return (
     <div
-      style={{
-        height: containerHeight,
-        overflowY: 'auto',
-        position: 'relative'
-      }}
+      ref={containerRef}
+      style={{ height: containerHeight, overflowY: 'auto', position: 'relative' }}
       onScroll={handleScroll}
     >
       <div style={{ height: totalHeight, position: 'relative' }}>
         <div
           style={{
-            transform: `translateY(${visibleIndices.start * itemHeight}px)`,
+            transform: `translateY(${start * itemHeight}px)`,
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0
           }}
         >
-          {visibleItems.map(({ item, index }) =>
-            renderItem(item, index)
-          )}
+          {items.slice(start, end + 1).map((item, i) => {
+            const idx = start + i;
+            const key = itemKey ? itemKey(item, idx) : idx;
+            return (
+              <div key={key} style={{ height: itemHeight }}>
+                {renderItem(item, idx)}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

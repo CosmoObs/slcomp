@@ -251,7 +251,11 @@ for jname in multiple_entry.JNAME:
     reference = len(entry.Reference[0])
     for column in values:
         if bool(pd.isna(entry[column])[0]):
-            entry.loc[0, column] = np.repeat(np.nan, reference)
+            # `.at[]` (scalar accessor) accepts storing the list as the cell
+            # value; `.loc[0, column] = <iterable>` raises in pandas >= 2.x
+            # ("Must have equal len keys and value when setting with an iterable").
+            entry[column] = entry[column].astype(object)
+            entry.at[0, column] = [np.nan] * reference
     df_new = pd.concat([df_new, entry], axis=0).reset_index(drop=True)
 
 df_new = df_new.drop(columns=["multiple"])

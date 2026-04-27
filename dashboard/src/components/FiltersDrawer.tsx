@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Drawer, Box, IconButton, Typography, Divider, Slider, TextField, Chip, Stack, Button, Collapse } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -19,7 +19,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   allReferences: string[];
-  numericFields: NumericFilterConfig[];
+  numericFields: readonly NumericFilterConfig[];
   domain: Record<string, { min: number; max: number }>; // key -> domain
   value: FiltersState;
   onChange: (v: FiltersState) => void;
@@ -45,17 +45,11 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
     setLocalNumeric(init);
   }, [domain, numericFields, value.numeric]);
 
-  // Debounced JNAME search (user stops typing 300ms)
-  const [searchDraft, setSearchDraft] = useState(value.jnameSearch);
-  useEffect(()=> setSearchDraft(value.jnameSearch), [value.jnameSearch]);
-  useEffect(()=> {
-    const t = setTimeout(()=> {
-      if(searchDraft !== value.jnameSearch){
-        onChange({ ...value, jnameSearch: searchDraft });
-      }
-    }, 300);
-    return ()=> clearTimeout(t);
-  }, [searchDraft, value, onChange]);
+  // No internal debounce — App.tsx debounces filters.jnameSearch once.
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...value, jnameSearch: e.target.value });
+  }, [value, onChange]);
+
   const toggleReference = (ref: string) => {
     const active = new Set(value.references);
     if(active.has(ref)) active.delete(ref); else active.add(ref);
@@ -79,15 +73,13 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
       anchor="left" 
       open={open} 
       onClose={onClose} 
-      PaperProps={{ 
-        sx: ({ breakpoints }) => ({ 
-          width: { xs: '100%', sm: 320, md: 360 }, 
-          maxWidth: '100%', 
-          background: 'linear-gradient(180deg,#0d1820,#0a141a)', 
-          display:'flex', 
-          flexDirection:'column',
-          borderRight: '1px solid rgba(255,255,255,0.08)'
-        }) 
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 320, md: 360 },
+          maxWidth: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }
       }}
     >
       <Box sx={{ p:2, pb:1 }}>
@@ -100,9 +92,9 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
           label="Search JNAME"
           size="small"
           fullWidth
-            value={searchDraft}
-            onChange={e=> setSearchDraft(e.target.value)}
-            sx={{ mb: 2 }}
+          value={value.jnameSearch}
+          onChange={handleSearchChange}
+          sx={{ mb: 2 }}
         />
         <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ cursor:'pointer', mb:1 }} onClick={()=> setRefsCollapsed(c=> !c)}>
           <Typography variant="subtitle2">Reference Catalogs</Typography>

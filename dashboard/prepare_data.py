@@ -242,7 +242,7 @@ values = []
 for key in multiple_entry:
     try:
         multiple_entry[key].unique()
-    except:
+    except Exception:
         values.append(key)
 
 df_new = pd.DataFrame()

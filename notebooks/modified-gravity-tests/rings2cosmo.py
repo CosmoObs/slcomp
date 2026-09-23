@@ -50,7 +50,6 @@ def vel(z_S, z_L, theta_E, seeing_atm, theta_ap, alpha, beta, delta, gamma):
 
     # Angular diameter distances:
     DS = cosmo.angular_diameter_distance(z_S)
-    DL = cosmo.angular_diameter_distance(z_L)
     DLS = cosmo.angular_diameter_distance_z1z2(z_L, z_S)
 
     # \chi
@@ -236,7 +235,9 @@ def minimization_loglikelihood(
         list: list of alpha, beta, delta, and gamma obtained from minimization of likelihood function.
     """
     np.random.seed(seed)
-    nll = lambda *args: -log_likelihood(*args)
+
+    def nll(*args):
+        return -log_likelihood(*args)
 
     initial = np.array(
         [alpha_ini, beta_ini, delta_ini, gamma_ini]
@@ -315,7 +316,10 @@ def minimization_logprobability(
     eps_delta_0 = np.repeat(eps_delta_0_value, len(z_S))
 
     np.random.seed(seed)
-    nll_2 = lambda *args: -log_probability(*args)
+
+    def nll_2(*args):
+        return -log_probability(*args)
+
     initial = np.array(
         [alpha_ini, beta_ini, delta_ini, gamma_ini]
     ) + 1e-5 * np.random.randn(4)

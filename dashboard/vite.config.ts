@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
+let outputDirectory = '';
 
 // For GitHub Pages deployment: set BASE_PATH environment variable to your repo name
 // Example: export BASE_PATH=/slcomp/ before building
@@ -11,33 +12,23 @@ export default defineConfig({
   base: basePath,
   plugins: [react(), {
     name: 'omit-source-catalogs',
+    apply: 'build',
+    configResolved(config) { outputDirectory = resolve(config.root, config.build.outDir); },
     // Originals feed the exporter; browsers use the compact index and shards.
     closeBundle() {
       for (const file of ['database.json', 'consolidated_database.json', 'cutouts.json']) {
-        rmSync(resolve(__dirname, 'dist/data', file), { force: true });
+        rmSync(resolve(outputDirectory, 'data', file), { force: true });
       }
     }
   }],
   build: {
-    target: 'es2020',
+    target: 'baseline-widely-available',
     chunkSizeWarningLimit: 1100,
     sourcemap: false, // Disable source maps for production
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.log in production
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug']
-      }
-    },
-    rollupOptions: {
+    minify: 'oxc',
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'mui-core': ['@mui/material', '@mui/system', '@emotion/react', '@emotion/styled'],
-          'mui-icons': ['@mui/icons-material'],
-          'query-vendor': ['@tanstack/react-query']
-        }
+        minify: { compress: { dropConsole: true, dropDebugger: true } },
       }
     }
   },

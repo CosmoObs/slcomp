@@ -1,0 +1,5 @@
+# Runtime dependencies for prepare_data.py; pyarrow is the parquet engine.
+minio>=7.2.20,<8
+numpy>=2.5.3,<3
+pandas>=3.0.6,<4
+pyarrow>=25.0.1,<26

@@ -128,7 +128,7 @@ export const FootprintLayers: React.FC<{ onImages: (images: FootprintImage[]) =>
             <Accordion key={id} defaultExpanded={id === 'surveys'} disableGutters sx={{ '&:before': { display: 'none' } }}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}><Typography variant="body2">{label}</Typography></AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
-                <FormControlLabel label="All" control={<Checkbox size="small" disabled={!layers.length} checked={layers.length > 0 && count === layers.length} indeterminate={count > 0 && count < layers.length} onChange={(_, checked) => toggle(layers.map(layer => layer.id), checked)} inputProps={{ 'aria-label': `All: ${label}` }} />} />
+                <FormControlLabel label="All" control={<Checkbox size="small" disabled={!layers.length} checked={layers.length > 0 && count === layers.length} indeterminate={count > 0 && count < layers.length} onChange={(_, checked) => toggle(layers.map(layer => layer.id), checked)} slotProps={{ input: { 'aria-label': `All: ${label}` } }} />} />
                 {layers.map(layer => (
                   <FormControlLabel key={layer.id} sx={{ display: 'flex', m: 0 }} label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, bgcolor: layer.color }} /><Typography variant="body2">{layer.label}</Typography></Box>}
                     control={<Checkbox size="small" checked={selected.includes(layer.id)} onChange={(_, checked) => toggle([layer.id], checked)} />} />

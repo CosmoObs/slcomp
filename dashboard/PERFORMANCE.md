@@ -50,8 +50,27 @@ Validation included:
   of the external MinIO/zrok service was not inferred from those tests.
 - Real-time animation checks: 30 frames/s for a visible map, 0 frames/s for a
   fully offscreen map.
-- `npm test`, TypeScript/Vite build and lint (no errors; 8 existing `any` warnings).
+- At the time of the original performance review: `npm test`, TypeScript/Vite
+  build and lint (no errors; 8 existing `any` warnings).
 
 The exporter regression tests run with `npm test`; `npm run build` regenerates
 browser data from the local source JSON automatically. Deployment still obtains
 those sources through `prepare_data.py` before building.
+
+## Build modernization verification
+
+Also checked on 2026-10-03 after upgrading React 19, Material UI 9, Vite 8,
+ESLint 10 and TypeScript 6 on Node 24. A clean `npm ci` succeeds and
+`npm run check` now reports zero lint warnings. The production bundle built
+in 1.89 seconds in one local run; this is a build observation, not a browser
+performance benchmark. Its entry chunk is 462 KB (141 KB gzip); map, tables,
+cutouts and observatory dialog remain separate lazy chunks.
+
+Repeated production browser checks passed for desktop/mobile layers, the hidden
+photo, image cache/URL cleanup and bitmap reuse. Keyboard slider changes,
+filter reset, search and Enter selection were also exercised. The visible pulse remains at
+30 frames/s and stops fully offscreen. The isolated CI fixture build also passed
+Pages path, 256-shard, WebP and source-dataset omission checks. The earlier heap
+and main-thread measurements above were not remeasured for this dependency
+upgrade. The Python 3.14/pandas 3 exporter passes its CSV/Parquet integration test
+without MinIO access.

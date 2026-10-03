@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /dashboard
+    schedule:
+      interval: monthly
+    groups:
+      react:
+        patterns: [react, react-dom, '@types/react*']
+      material-ui:
+        patterns: ['@mui/*', '@emotion/*']
+      tooling:
+        dependency-type: development
+        exclude-patterns: ['@types/react*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

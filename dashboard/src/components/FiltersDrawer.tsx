@@ -54,9 +54,8 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
   const updateNumericDrag = (key: string, range: number[]) => {
     setLocalNumeric(prev => ({ ...prev, [key]: [range[0], range[1]] }));
   };
-  const commitNumeric = (key: string) => {
-    const r = localNumeric[key];
-    onChange({ ...value, numeric: { ...value.numeric, [key]: [r[0], r[1]] } });
+  const commitNumeric = (key: string, range: number[]) => {
+    onChange({ ...value, numeric: { ...value.numeric, [key]: [range[0], range[1]] } });
   };
 
   const clearNumeric = (key: string) => {
@@ -68,17 +67,17 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
       anchor="right"
       open={open}
       onClose={onClose}
-      PaperProps={{
+      slotProps={{ paper: {
         sx: {
           width: { xs: '100%', sm: 320, md: 360 },
           maxWidth: '100%',
           display: 'flex',
           flexDirection: 'column'
         }
-      }}
+      } }}
     >
       <Box sx={{ p:2, pb:1 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="h6">Refine results</Typography>
           <IconButton size="small" onClick={onClose} aria-label="Close filters"><CloseIcon fontSize="small" /></IconButton>
         </Box>
@@ -89,7 +88,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
         </ButtonBase>
         <Collapse id="reference-filters" in={!refsCollapsed} timeout="auto" unmountOnExit>
           <Box sx={{ maxHeight:220, overflowY:'auto', pr:0.5, mb:2, border:'1px solid rgba(255,255,255,0.08)', borderRadius:1, p:1, background:'rgba(255,255,255,0.04)' }}>
-            <Stack direction="row" flexWrap="wrap" gap={0.5}>
+            <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
               {allReferences.map(r => {
                 const active = value.references.includes(r);
                 return <Chip key={r} label={r} size="small" color={active? 'primary':'default'} variant={active? 'filled':'outlined'} onClick={()=> toggleReference(r)} />;
@@ -108,7 +107,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
             const isActive = value.numeric[f.key] != null;
             return (
               <Box key={f.key}>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Typography variant="caption" sx={{ fontWeight:600, letterSpacing:0.4 }}>{f.label}</Typography>
                   {isActive && <Button size="small" onClick={()=> clearNumeric(f.key)} sx={{ fontSize:10, minWidth: 'auto', p:0.5, lineHeight:1 }}>reset</Button>}
                 </Box>
@@ -118,7 +117,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
                   min={dom.min}
                   max={dom.max}
                   onChange={(_, val)=> updateNumericDrag(f.key, val as number[])}
-                  onChangeCommitted={()=> commitNumeric(f.key)}
+                  onChangeCommitted={(_, val)=> commitNumeric(f.key, val as number[])}
                   getAriaLabel={() => f.label}
                   valueLabelDisplay="auto"
                   sx={{ mt: 1 }}
@@ -130,7 +129,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
         </Stack>
       </Box>
       <Divider sx={{ mx:2, my:1, opacity:0.3 }} />
-      <Box display="flex" gap={1} sx={{ p:2, pt:1 }}>
+      <Box sx={{ display: 'flex', gap: 1, p:2, pt:1 }}>
         <Button fullWidth size="small" variant="outlined" onClick={onReset}>Reset filters</Button>
         <Button fullWidth size="small" variant="contained" onClick={onClose}>Show results</Button>
       </Box>

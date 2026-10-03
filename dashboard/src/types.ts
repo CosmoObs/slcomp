@@ -1,11 +1,11 @@
 export interface DataRecord {
   JNAME: string;
-  [key: string]: any; // dynamic attributes
+  [key: string]: unknown; // dynamic attributes
 }
 
 export interface ConsolidatedRecord {
   JNAME: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CutoutRecord {
@@ -17,7 +17,7 @@ export interface CutoutRecord {
 
 export interface DictionaryEntry {
   JNAME?: string[] | string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export type Dictionary = Record<string, DictionaryEntry>;

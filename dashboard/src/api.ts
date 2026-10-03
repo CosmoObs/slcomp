@@ -29,7 +29,7 @@ async function fetchJson<T>(file: string, signal?: AbortSignal): Promise<T> {
     return await res.json();
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError' && timedOut) {
-      throw new Error(`Request timeout for ${url}`);
+      throw new Error(`Request timeout for ${url}`, { cause: err });
     }
     throw err;
   } finally {

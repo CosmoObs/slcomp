@@ -45,7 +45,7 @@ function projectObjects(objects: SkyObject[]): ProjectedPoint[] {
   for (const o of objects) {
     if (!o) continue;
     let RA = toNum(o.RA);
-    let DEC = toNum(o.DEC);
+    const DEC = toNum(o.DEC);
     if (isNaN(RA) || isNaN(DEC)) continue;
     if (RA < 0) RA = ((RA % 360) + 360) % 360;
     if (RA >= 360) RA = RA % 360;

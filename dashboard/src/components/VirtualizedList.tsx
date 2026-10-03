@@ -58,6 +58,14 @@ const VirtualizedListInner = <T,>({
     }
   }, [scrollToIndex, itemHeight, containerHeight, items.length]);
 
+  // Start at the first result when filtering replaces the list; preserve the
+  // selected object position when it remains in the results.
+  useEffect(() => {
+    if (scrollToIndex != null && scrollToIndex >= 0) return;
+    if (containerRef.current) containerRef.current.scrollTop = 0;
+    setScrollTop(0);
+  }, [items, scrollToIndex]);
+
   const totalHeight = items.length * itemHeight;
   const { start, end } = visibleIndices;
 

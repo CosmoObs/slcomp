@@ -51,7 +51,7 @@ const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
   }
 
   return (
-    <Box sx={{ width: '100%', border: '1px solid rgba(90,170,200,0.25)', borderRadius: 2, overflow: 'hidden' }}>
+    <Box sx={{ width: '100%', borderTop: '1px solid #2b333e', borderRadius: 0, overflow: 'hidden' }}>
       <TableContainer sx={{ maxHeight: 480 }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -63,7 +63,7 @@ const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
                   sx={{
                     fontWeight: 600,
                     fontSize: 12,
-                    background: '#0f1c27',
+                    background: '#171d24',
                     borderBottom: '1px solid rgba(255,255,255,0.08)',
                     whiteSpace: 'nowrap'
                   }}
@@ -112,9 +112,9 @@ const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
 
 export const DataTables: React.FC<Props> = ({ database, consolidated }) => {
   return (
-    <Box display="flex" flexDirection="column" gap={6}>
+    <Box display="flex" flexDirection="column" gap={3}>
       <Box>
-        <Typography variant="h6" sx={{ mb: 1, textAlign: 'left' }}>Full Dataset Record</Typography>
+        <Typography variant="h6" sx={{ mb: 1, textAlign: 'left' }}>Catalog records</Typography>
         <SimpleTable rows={database as Record<string, unknown>[]} />
       </Box>
       <Box>

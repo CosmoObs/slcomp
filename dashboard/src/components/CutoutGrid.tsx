@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Box, Grid, Typography, Paper, Skeleton } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { getCutoutObject } from '../api';
@@ -15,7 +15,7 @@ export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
       <Typography variant="h6" gutterBottom>{survey}</Typography>
       <Grid container spacing={2}>
         {cutouts.map(c => (
-          <Grid item key={c.file_path} xs={6} sm={4} md={2}>
+          <Grid item key={c.file_path} xs={6} sm={4} lg={3}>
             <CutoutCard record={c} />
           </Grid>
         ))}
@@ -27,15 +27,21 @@ export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
 CutoutGrid.displayName = 'CutoutGrid';
 
 const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
-  // Blob URLs returned by getCutoutObject are kept alive for the session via
-  // the module-level cache in api.ts — we deliberately don't revoke on
-  // unmount to avoid breaking images that react-query will hand back from
-  // its cache when the component remounts.
-  const { data, isLoading, error: queryError } = useQuery({
-    queryKey: ['cutout', record.file_path],
-    queryFn: () => getCutoutObject(record.file_path),
-    staleTime: 5 * 60 * 1000,
-    retry: 1
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setNearViewport(true); observer.disconnect(); }
+    }, { rootMargin: '200px' });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const { data, isPending: isLoading, error: queryError } = useQuery({
+    queryKey: ['cutout', record.file_path], enabled: nearViewport,
+    queryFn: ({ signal }) => getCutoutObject(record.file_path, signal),
+    staleTime: Infinity, gcTime: 60 * 1000, retry: 1
   });
 
   // getCutoutObject swallows fetch errors and falls back to the raw URL so
@@ -47,10 +53,10 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
   const showError = !!queryError || imgError;
 
   return (
-    <Paper sx={{ p: 1.5, textAlign: 'center' }}>
+    <Paper ref={cardRef} sx={{ p: 0, textAlign: 'center' }}>
       <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>{record.band}</Typography>
-      <Box mt={1} sx={{ position: 'relative', width: '100%', maxWidth: 160, mx: 'auto' }}>
-        <Box sx={{ position: 'relative', width: '100%', pt: '100%', borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(90,170,200,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box mt={1} sx={{ position: 'relative', width: '100%', maxWidth: 220, mx: 'auto' }}>
+        <Box sx={{ position: 'relative', width: '100%', pt: '100%', borderRadius: 0, overflow: 'hidden', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {isLoading && <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position: 'absolute', inset: 0 }} />}
           {!isLoading && data && !imgError && (
             <img
@@ -58,7 +64,7 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
               loading="lazy"
               decoding="async"
               referrerPolicy="no-referrer"
-              alt={record.band + ' cutout'}
+              alt={`${record.JNAME} · ${record.survey} · ${record.band}`}
               onError={() => setImgError(true)}
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
             />
@@ -70,7 +76,7 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
           )}
           {showError && (
             <Typography variant="caption" color="error" sx={{ textAlign: 'center', px: 0.5, position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              Error
+              Image unavailable
             </Typography>
           )}
         </Box>

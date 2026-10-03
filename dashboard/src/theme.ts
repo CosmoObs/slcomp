@@ -1,110 +1,52 @@
 import { createTheme, alpha } from '@mui/material/styles';
 
-const customShadows = [
-  'none',
-  '0 2px 4px -2px rgba(0,0,0,0.6)',
-  '0 4px 12px -2px rgba(0,0,0,0.65)',
-  '0 6px 18px -4px rgba(0,0,0,0.65)',
-  '0 10px 28px -6px rgba(0,0,0,0.7)',
-  ...Array(20).fill('0 0 0 1px rgba(0,0,0,0.4)') as string[]
-] as const;
-
-// Solid (non-translucent) deep space theme — keeps the dark/aqua look but
-// avoids backdrop-filter / saturate filters everywhere, which were the main
-// source of GPU/RAM pressure and laggy scroll.
-export const darkAquaTheme = createTheme({
+export const catalogTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: { main: '#00d8ff', light: '#4be9ff', dark: '#0096aa', contrastText: '#001e24' },
-    secondary: { main: '#7753ff', light: '#9c7dff', dark: '#4b27c7' },
-    info: { main: '#4bb8ff' },
-    success: { main: '#00c27a' },
-    error: { main: '#ff4d67' },
-    warning: { main: '#ffb347' },
-    background: {
-      default: '#03060a',
-      paper: '#101a28'
-    },
-    divider: 'rgba(255,255,255,0.08)',
-    text: {
-      primary: '#e6f7ff',
-      secondary: alpha('#e6f7ff', 0.6)
-    }
+    primary: { main: '#8ed4be', light: '#b6e8d8', dark: '#579f88', contrastText: '#10251f' },
+    secondary: { main: '#a9b8e8' },
+    background: { default: '#000000', paper: '#000000' },
+    text: { primary: '#edf0f4', secondary: '#9ba6b5' },
+    divider: '#2b333e',
+    error: { main: '#f19191' },
+    action: { hover: 'rgba(255,255,255,0.04)', selected: 'rgba(142,212,190,0.10)' }
   },
-  shape: { borderRadius: 14 },
+  shape: { borderRadius: 4 },
   typography: {
-    fontFamily: 'Inter, "IBM Plex Sans", Roboto, system-ui, sans-serif',
-    h6: { letterSpacing: 0.6, fontWeight: 600 },
-    button: { textTransform: 'none', fontWeight: 500 }
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h4: { fontSize: '1.85rem', fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1.3 },
+    h5: { fontSize: '1.3rem', fontWeight: 600, letterSpacing: '-0.025em' },
+    h6: { fontSize: '1.05rem', fontWeight: 600, letterSpacing: '-0.015em' },
+    body2: { fontSize: '0.875rem', lineHeight: 1.6 },
+    overline: { fontSize: '0.65rem', fontWeight: 600, letterSpacing: '0.14em', lineHeight: 2.5 },
+    button: { textTransform: 'none', fontWeight: 600, letterSpacing: 0 }
   },
-  shadows: customShadows as any,
   components: {
-    MuiCssBaseline: {
-      styleOverrides: () => ({
-        body: {
-          backgroundColor: '#03060a',
-          // Single static gradient — no fixed attachment, no radial overlays.
-          backgroundImage: 'linear-gradient(135deg, #04080d 0%, #061018 50%, #04080d 100%)',
-          overscrollBehavior: 'none',
-          WebkitFontSmoothing: 'antialiased'
-        },
-        '*::selection': { background: alpha('#00d8ff', 0.25) },
-        '::-webkit-scrollbar': { width: 10, height: 10 },
-        '::-webkit-scrollbar-track': { background: 'rgba(255,255,255,0.03)' },
-        '::-webkit-scrollbar-thumb': {
-            background: 'linear-gradient(180deg,#145566,#0a2a33)',
-            border: '2px solid #03060a',
-            borderRadius: 24
-        },
-        '::-webkit-scrollbar-thumb:hover': { background: 'linear-gradient(180deg,#1a6d80,#0d3642)' }
-      })
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: () => ({
-          background: 'linear-gradient(135deg, #14222e 0%, #0d1820 60%, #0a141c 100%)',
-          border: '1px solid rgba(255,255,255,0.05)',
-          boxShadow: '0 4px 28px -10px rgba(0,0,0,0.7)'
-        })
-      }
-    },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          background: 'linear-gradient(90deg, #06101a 0%, #0a1622 55%, #06101a 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 2px 16px -6px rgba(0,0,0,0.7)'
-        }
-      }
-    },
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          background: 'linear-gradient(180deg, #0c1620 0%, #08111a 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.07)'
-        }
-      }
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 10,
-          fontWeight: 500,
-          letterSpacing: 0.4
-        },
-        containedPrimary: {
-          background: 'linear-gradient(135deg,#00d8ff,#0087ff)',
-          boxShadow: '0 4px 12px -4px rgba(0,180,255,0.55)',
-          '&:hover': {
-            background: 'linear-gradient(135deg,#34e4ff,#0096ff)'
-          }
-        }
-      }
-    },
-    MuiTabs: { styleOverrides: { indicator: { height: 3, borderRadius: 3 } } },
-    MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 500 } } },
-    MuiTooltip: { styleOverrides: { tooltip: { background: '#1a2530', border: '1px solid rgba(255,255,255,0.08)', fontSize: 12 } } },
-    MuiDivider: { styleOverrides: { root: { borderColor: 'rgba(255,255,255,0.06)' } } },
-    MuiTextField: { styleOverrides: { root: { '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' } } } }
+    MuiCssBaseline: { styleOverrides: {
+      body: { WebkitFontSmoothing: 'antialiased' },
+      '*': { scrollbarWidth: 'thin', scrollbarColor: '#3c4756 transparent' },
+      '*::selection': { background: alpha('#8ed4be', 0.25) },
+      ':focus-visible': { outline: '2px solid #8ed4be', outlineOffset: 3 }
+    } },
+    MuiPaper: { defaultProps: { elevation: 0 }, styleOverrides: { root: {
+      backgroundImage: 'none', backgroundColor: 'transparent', border: 0, boxShadow: 'none'
+    } } },
+    MuiAppBar: { styleOverrides: { root: {
+      backgroundColor: '#000000', color: '#edf0f4', border: 0, borderBottom: '1px solid #2b333e', boxShadow: 'none'
+    } } },
+    MuiDrawer: { styleOverrides: { paper: { backgroundColor: '#191e25', backgroundImage: 'none' } } },
+    MuiButton: { defaultProps: { disableElevation: true }, styleOverrides: {
+      root: { borderRadius: 4, padding: '8px 16px' },
+      outlined: { borderColor: '#3c4756', color: '#edf0f4', '&:hover': { borderColor: '#8ed4be', backgroundColor: 'rgba(142,212,190,0.05)' } }
+    } },
+    MuiOutlinedInput: { styleOverrides: { root: {
+      borderRadius: 4, backgroundColor: 'transparent',
+      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3c4756' }
+    }, input: { padding: '13px 14px' } } },
+    MuiTabs: { styleOverrides: { indicator: { height: 2 }, root: { borderBottom: '1px solid #2b333e' } } },
+    MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 600, minHeight: 52, padding: '12px 16px' } } },
+    MuiChip: { styleOverrides: { root: { borderRadius: 3, fontSize: 12 } } },
+    MuiTooltip: { styleOverrides: { tooltip: { backgroundColor: '#303a47', fontSize: 12 } } },
+    MuiTableCell: { styleOverrides: { root: { borderColor: '#2b333e' } } }
   }
 });

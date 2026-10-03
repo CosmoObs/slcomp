@@ -1,4 +1,5 @@
 import type { DataRecord, ConsolidatedRecord, Dictionary, CutoutRecord } from './types';
+export { dataBucket } from './dataBucket';
 
 // When deployed on GitHub Pages the app is served from /<repo-name>/.
 // We build URLs relative to Vite's injected BASE_URL so static JSON in
@@ -10,9 +11,12 @@ const buildDataUrl = (file: string) => {
   return `${base}data/${file}`;
 };
 
-async function fetchJson<T>(file: string): Promise<T> {
+async function fetchJson<T>(file: string, signal?: AbortSignal): Promise<T> {
   const url = buildDataUrl(file);
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
   let timedOut = false;
   const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
 
@@ -30,13 +34,32 @@ async function fetchJson<T>(file: string): Promise<T> {
     throw err;
   } finally {
     clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', abort);
   }
 }
 
-export const loadDatabase = (): Promise<DataRecord[]> => fetchJson<DataRecord[]>('database.json');
-export const loadConsolidated = (): Promise<ConsolidatedRecord[]> => fetchJson<ConsolidatedRecord[]>('consolidated_database.json');
+export interface CatalogObject {
+  JNAME: string;
+  RA: number | null;
+  DEC: number | null;
+  z_L: number | null;
+  z_S: number | null;
+  recordCount: number;
+  imageCount: number;
+  [key: string]: unknown;
+}
+export interface CatalogIndex {
+  objects: CatalogObject[];
+  domain: Record<string, { min: number; max: number }>;
+}
+export interface ObjectDetails {
+  database: DataRecord[];
+  consolidated: ConsolidatedRecord[];
+  cutouts: CutoutRecord[];
+}
+export const loadCatalog = (signal?: AbortSignal): Promise<CatalogIndex> => fetchJson('catalog.json', signal);
+export const loadDetails = (bucket: string, signal?: AbortSignal): Promise<Record<string, ObjectDetails>> => fetchJson(`objects/${bucket}.json`, signal);
 export const loadDictionary = (): Promise<Dictionary> => fetchJson<Dictionary>('dictionary.json');
-export const loadCutouts = (): Promise<CutoutRecord[]> => fetchJson<CutoutRecord[]>('cutouts.json');
 
 // MinIO direct image retrieval.
 // Endpoint resolution rules:
@@ -74,34 +97,25 @@ export const buildCutoutUrl = (objectKey: string): string => {
   return url;
 };
 
-// Cache of blob URLs keyed by source URL. Lifetime is the page session: we
-// intentionally never call URL.revokeObjectURL because react-query keeps the
-// blob URL string in its cache for `staleTime` (and longer for `gcTime`), so
-// revoking on unmount would leave broken images on remount. With typical
-// cutout sizes (~50–200 KB JPEGs) and bounded selections per session this
-// is an acceptable trade. If a session needs to load thousands of unique
-// cutouts, add an LRU here that coordinates revocation with react-query's
-// QueryCache events.
-const blobCache = new Map<string, string>();
-
-export const getCutoutObject = async (objectKey: string): Promise<string | null> => {
+// React Query owns each blob URL. Its cache removal event revokes the URL;
+// there is no second, unbounded session cache here.
+export const getCutoutObject = async (objectKey: string, signal?: AbortSignal): Promise<string | null> => {
   const url = buildCutoutUrl(objectKey);
-
   if (env.DEV) return url;
-
-  const cached = blobCache.get(url);
-  if (cached) return cached;
-
   try {
     const response = await fetch(url, {
+      signal,
       headers: { skip_zrok_interstitial: 'true', Accept: 'image/*' }
     });
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
     const blob = await response.blob();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const blobUrl = URL.createObjectURL(blob);
-    blobCache.set(url, blobUrl);
+    // Cancellation can race the promise handoff to the query cache.
+    signal?.addEventListener('abort', () => URL.revokeObjectURL(blobUrl), { once: true });
     return blobUrl;
   } catch (error) {
+    if (signal?.aborted) throw error;
     if (DEBUG_CUTOUTS) console.error('[cutout-fetch-failed]', { objectKey, url, error });
     return url;
   }

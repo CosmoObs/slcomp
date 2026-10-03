@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, memo } from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, ButtonBase, Paper, Typography, useMediaQuery, useTheme } from '@mui/material';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { VirtualizedList } from './VirtualizedList';
 
 interface SkyObject {
@@ -14,75 +15,60 @@ interface Props {
   height?: number;
 }
 
-const ROW_HEIGHT = 28;
+const ROW_HEIGHT = 64;
+const coordinate = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(4)}°` : '—';
 
-export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected, height = 360 }) => {
-  // Pre-filter once. Items keep stable identity across renders via JNAME.
+export const ObjectsTable: React.FC<Props> = memo(({ objects, onSelect, selected, height = 540 }) => {
   const items = useMemo(() => objects.filter(o => !!o?.JNAME), [objects]);
+  const selectedIndex = useMemo(() => items.findIndex(o => o.JNAME === selected), [items, selected]);
+  const isDesktop = useMediaQuery(useTheme().breakpoints.up('md'));
+  const panelHeight = isDesktop ? height : Math.min(320, 68 + (items.length || 2) * ROW_HEIGHT);
+  const listHeight = panelHeight - 68;
 
-  const selectedIndex = useMemo(() => {
-    if (!selected) return -1;
-    for (let i = 0; i < items.length; i++) if (items[i].JNAME === selected) return i;
-    return -1;
-  }, [items, selected]);
-
-  // Reserve room for header + count line.
-  const HEADER_RESERVED = 28;
-  const listHeight = Math.max(80, height - HEADER_RESERVED);
-
-  const renderItem = useCallback(
-    (item: SkyObject, _idx: number) => {
-      const isSel = item.JNAME === selected;
-      return (
-        <Box
-          onClick={() => onSelect(item.JNAME)}
-          sx={{
-            height: ROW_HEIGHT,
-            display: 'flex',
-            alignItems: 'center',
-            px: 1,
-            cursor: 'pointer',
-            fontSize: 12,
-            fontFamily: 'inherit',
-            color: 'text.primary',
-            borderBottom: '1px solid rgba(255,255,255,0.04)',
-            background: isSel ? 'rgba(0,120,180,0.28)' : 'transparent',
-            '&:hover': { background: isSel ? 'rgba(0,120,180,0.32)' : 'rgba(255,255,255,0.04)' },
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {item.JNAME}
+  const renderItem = useCallback((item: SkyObject) => {
+    const isSelected = item.JNAME === selected;
+    return (
+      <ButtonBase
+        onClick={() => onSelect(item.JNAME)}
+        aria-label={`View object ${item.JNAME}`}
+        aria-pressed={isSelected}
+        sx={{
+          height: ROW_HEIGHT, width: '100%', justifyContent: 'space-between', px: 2,
+          textAlign: 'left', borderBottom: '1px solid', borderBottomColor: 'divider',
+          borderLeft: '2px solid', borderLeftColor: isSelected ? 'primary.main' : 'transparent',
+          bgcolor: isSelected ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: 'action.hover' },
+          '&.Mui-focusVisible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -3 }
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: isSelected ? 'primary.main' : 'text.primary' }}>{item.JNAME}</Typography>
+          <Typography variant="caption" color="text.secondary">RA {coordinate(item.RA)} · DEC {coordinate(item.DEC)}</Typography>
         </Box>
-      );
-    },
-    [onSelect, selected]
-  );
+        <ChevronRightIcon sx={{ fontSize: 18, color: isSelected ? 'primary.main' : 'text.secondary', ml: 1 }} />
+      </ButtonBase>
+    );
+  }, [onSelect, selected]);
 
-  const itemKey = useCallback((it: SkyObject) => it.JNAME, []);
+  const itemKey = useCallback((item: SkyObject) => item.JNAME, []);
 
   return (
-    <Paper sx={{ p: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="caption" sx={{ pl: 1, fontWeight: 600, letterSpacing: 0.5, mb: 0.5 }}>
-        Filtered Objects ({items.length})
-      </Typography>
-      <Box sx={{ flex: 1, minHeight: 0, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden', background: 'rgba(0,0,0,0.2)' }}>
-        {items.length === 0 ? (
-          <Box sx={{ p: 2 }}>
-            <Typography variant="caption" color="text.secondary">No objects.</Typography>
-          </Box>
-        ) : (
-          <VirtualizedList
-            items={items}
-            renderItem={renderItem}
-            itemHeight={ROW_HEIGHT}
-            containerHeight={listHeight}
-            scrollToIndex={selectedIndex}
-            itemKey={itemKey}
-          />
-        )}
+    <Paper component="section" aria-label="Catalog results" sx={{ overflow: 'hidden', height: panelHeight, borderRight: { md: '1px solid #2b333e' }, borderBottom: { xs: '1px solid #2b333e', md: 0 }, borderRadius: 0, pr: { md: 2 } }}>
+      <Box sx={{ height: 68, px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Results</Typography>
+          <Typography variant="caption" color="text.secondary">Select an object to explore</Typography>
+        </Box>
+
       </Box>
+      {items.length === 0 ? (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="body2" sx={{ mb: 1 }}>No matching objects</Typography>
+          <Typography variant="body2" color="text.secondary">Try another JNAME or adjust your filters.</Typography>
+        </Box>
+      ) : (
+        <VirtualizedList items={items} renderItem={renderItem} itemHeight={ROW_HEIGHT} containerHeight={listHeight} scrollToIndex={selectedIndex} itemKey={itemKey} />
+      )}
     </Paper>
   );
 });

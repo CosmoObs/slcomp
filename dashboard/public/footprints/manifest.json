@@ -1,0 +1,616 @@
+{
+  "projection": "Mollweide",
+  "frame": "ICRS",
+  "width": 2048,
+  "height": 1024,
+  "generated_at": "2026-10-03T21:11:22.296223+00:00",
+  "source_notebook": "notebooks/footprints/footprints.ipynb",
+  "mocpy_version": "0.20.0",
+  "visualization": {
+    "closing_radius_px": 12,
+    "buffer_radius_px": 3,
+    "gaussian_sigma_px": 3
+  },
+  "note": "Smoothed and buffered visualizations of notebook MOCs; source coverage statistics are unchanged. Not exact survey selection functions.",
+  "layers": [
+    {
+      "id": "legacy",
+      "label": "Legacy DR8",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#80a7ec",
+      "image": "legacy.webp",
+      "border": "legacy-border.webp",
+      "displayed_pixels": 808827,
+      "operation": "legacy",
+      "moc_order": 11,
+      "sky_fraction": 0.47812217473983765,
+      "sources": [
+        {
+          "source": "https://cdsarc.cds.unistra.fr/ftp/VII/292/tab_7292_1_VII_292_north.moc.fits",
+          "sha256": "d82c3d904fe4d3b7f1b05b62654136d5555d630ee510cb6fcc23d410be8667ed"
+        },
+        {
+          "source": "https://cdsarc.cds.unistra.fr/ftp/VII/292/tab_7292_2_VII_292_south.moc.fits",
+          "sha256": "f60eb78706ae8411ff339c7b07b56113459468596048d45bccae29b18f7e513e"
+        }
+      ]
+    },
+    {
+      "id": "des",
+      "label": "DES DR2",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#85c89a",
+      "image": "des.webp",
+      "border": "des-border.webp",
+      "displayed_pixels": 219737,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.12639602025349936,
+      "sources": [
+        {
+          "source": "II/371/des_dr2",
+          "sha256": "edd4eb81790342732f20ff0ef1d272967d349fe107ce6916c905154a97221ebb"
+        }
+      ]
+    },
+    {
+      "id": "hsc",
+      "label": "HSC DR2",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#72d0cf",
+      "image": "hsc.webp",
+      "border": "hsc-border.webp",
+      "displayed_pixels": 37935,
+      "operation": "combined",
+      "moc_order": 12,
+      "sky_fraction": 0.018411387999852497,
+      "sources": [
+        {
+          "source": "local:CDS-P-HSC-DR2-wide-color-i-r-g_MOC.fits",
+          "sha256": "2b93e5d43bc6931f0606f367c8b9cfd3ff0e40cdb4f413c9d3f7324cd864e628"
+        },
+        {
+          "source": "local:CDS-P-HSC-DR2-deep-color-i-r-g_MOC.fits",
+          "sha256": "44ee03d96d8426cf95f005b287a9c27d84a485d738bb52cde885a530121c264f"
+        }
+      ]
+    },
+    {
+      "id": "kids",
+      "label": "KiDS DR3",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#ed8694",
+      "image": "kids.webp",
+      "border": "kids-border.webp",
+      "displayed_pixels": 27773,
+      "operation": "extended",
+      "moc_order": 10,
+      "sky_fraction": 0.011891682942708336,
+      "sources": [
+        {
+          "source": "II/347/kids_dr3",
+          "sha256": "1451a27713e45fcb11ce2e85663dc40600b697a5f8b272621676bcad73eaedda"
+        }
+      ]
+    },
+    {
+      "id": "rcslens",
+      "label": "RCSLenS",
+      "groups": [
+        "surveys"
+      ],
+      "color": "#bd99df",
+      "image": "rcslens.webp",
+      "border": "rcslens-border.webp",
+      "displayed_pixels": 27464,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.003103534380594889,
+      "sources": [
+        {
+          "source": "J/A+A/584/A44/table3",
+          "sha256": "4e569a28a2a4b5b69ab892585cc479d47c3bf2b88f0edacd879aaed315e8c84c"
+        }
+      ]
+    },
+    {
+      "id": "cs82",
+      "label": "CS82",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#dfd283",
+      "image": "cs82.webp",
+      "border": "cs82-border.webp",
+      "displayed_pixels": 12295,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0006054043769836426,
+      "sources": [
+        {
+          "source": "J/A+A/578/A79/tablea1",
+          "sha256": "a22c28cae5bb1817ef4ac43bba5c099031ff735285024c56f5de10d2ccafd67d"
+        }
+      ]
+    },
+    {
+      "id": "cfhtlens",
+      "label": "CFHTLenS / CFHTLS",
+      "groups": [
+        "surveys",
+        "photometry"
+      ],
+      "color": "#eba56e",
+      "image": "cfhtlens.webp",
+      "border": "cfhtlens-border.webp",
+      "displayed_pixels": 8798,
+      "operation": "cfht",
+      "moc_order": 11,
+      "sky_fraction": 0.003985087076822917,
+      "sources": [
+        {
+          "source": "II/317/cfhtls_w",
+          "sha256": "08ee22720c75af4fa10abeef1ef41005be500f97220b4efded417b4cb30ae10b"
+        },
+        {
+          "source": "II/317/cfhtls_d",
+          "sha256": "491b1a9f49782aba7b20abcd4c8da20200403ec691f0766fd20abf6a4d4443ed"
+        }
+      ]
+    },
+    {
+      "id": "sdss",
+      "label": "SDSS DR16",
+      "groups": [
+        "photometry",
+        "spectroscopy"
+      ],
+      "color": "#adb7c6",
+      "image": "sdss.webp",
+      "border": "sdss-border.webp",
+      "displayed_pixels": 687691,
+      "operation": "extended",
+      "moc_order": 10,
+      "sky_fraction": 0.37281330426534015,
+      "sources": [
+        {
+          "source": "V/154/sdss16",
+          "sha256": "6f7998fe8fe915c0ca16ae8220e09000b4d865a076488509323f9a882c23ff49"
+        }
+      ]
+    },
+    {
+      "id": "delve",
+      "label": "DELVE DR2",
+      "groups": [
+        "photometry"
+      ],
+      "color": "#dca1d3",
+      "image": "delve.webp",
+      "border": "delve-border.webp",
+      "displayed_pixels": 1059555,
+      "operation": "raw",
+      "moc_order": 9,
+      "sky_fraction": 0.15877310434977213,
+      "sources": [
+        {
+          "source": "local:moc_delve_objects.fits",
+          "sha256": "7bafe9154e38ffb07f156480809ebb0a7e6405b127da534b842c9d8597c66ad4"
+        }
+      ]
+    },
+    {
+      "id": "gama",
+      "label": "GAMA DR3",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#8aa4ed",
+      "image": "gama.webp",
+      "border": "gama-border.webp",
+      "displayed_pixels": 11848,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.005499601364135742,
+      "sources": [
+        {
+          "source": "J/MNRAS/474/3875/gamadr3",
+          "sha256": "30a051fb9fa8136a0936008b8fed1ed6c1b2b55a4827b8b8af70e9c5c0bf39ea"
+        }
+      ]
+    },
+    {
+      "id": "ozdes",
+      "label": "OzDES DR1",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#88caa5",
+      "image": "ozdes.webp",
+      "border": "ozdes-border.webp",
+      "displayed_pixels": 2088,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0007056196530659995,
+      "sources": [
+        {
+          "source": "J/MNRAS/472/273/ozdesdr1",
+          "sha256": "bc30e95748592b7b7f3e087c897027b91b513395b9d3159200a64b862d6ec1a3"
+        }
+      ]
+    },
+    {
+      "id": "wigglez",
+      "label": "WiggleZ",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#bd99df",
+      "image": "wigglez.webp",
+      "border": "wigglez-border.webp",
+      "displayed_pixels": 26392,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.006787995497385662,
+      "sources": [
+        {
+          "source": "J/MNRAS/401/1429/wigglez1",
+          "sha256": "0891d9a3ab2f9b115887d83a78ec9c28dfbb24c5f897206c2514c5e29923f6b2"
+        }
+      ]
+    },
+    {
+      "id": "2slaq",
+      "label": "2SLAQ",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#ee8796",
+      "image": "2slaq.webp",
+      "border": "2slaq-border.webp",
+      "displayed_pixels": 22300,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.00605223576227824,
+      "sources": [
+        {
+          "source": "J/MNRAS/392/19/2slaqqso",
+          "sha256": "48ef76a162f9865b3dec11e6740e6c6ec54a2c87f5415bf572753778607598e0"
+        }
+      ]
+    },
+    {
+      "id": "2df",
+      "label": "2dFGRS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#d7d07e",
+      "image": "2df.webp",
+      "border": "2df-border.webp",
+      "displayed_pixels": 86717,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.025016705195109054,
+      "sources": [
+        {
+          "source": "VII/250/2dfgrs",
+          "sha256": "66ee54b06efab212e503f4241afcd17f0a3ee450c3b454423c6249c5f2e07519"
+        }
+      ]
+    },
+    {
+      "id": "6df",
+      "label": "6dFGS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#aa9bdf",
+      "image": "6df.webp",
+      "border": "6df-border.webp",
+      "displayed_pixels": 665367,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.021537383397420246,
+      "sources": [
+        {
+          "source": "VII/259/spectra",
+          "sha256": "43227280775c6b9af0a38cb0c6a5e20c3c728d1d4ebdba6d7367958836b4d975"
+        }
+      ]
+    },
+    {
+      "id": "lamost",
+      "label": "LAMOST DR7 LRS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#dc8e83",
+      "image": "lamost.webp",
+      "border": "lamost-border.webp",
+      "displayed_pixels": 780958,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.38187221686045336,
+      "sources": [
+        {
+          "source": "V/156/dr7lrs",
+          "sha256": "7f246d975f3b9f29a65d06c8570c1af9e4f2a45b3cca7d485ac67e29fbd9b856"
+        }
+      ]
+    },
+    {
+      "id": "ssrs",
+      "label": "SSRS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#72c8d6",
+      "image": "ssrs.webp",
+      "border": "ssrs-border.webp",
+      "displayed_pixels": 107013,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0009415348370869956,
+      "sources": [
+        {
+          "source": "J/AJ/116/1/galaxies",
+          "sha256": "bd7fa9e3b476adc3ea0241e30eb69eec82ed964507e25849b56f6769e944bb79"
+        }
+      ]
+    },
+    {
+      "id": "lcrs",
+      "label": "LCRS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#a9b4c1",
+      "image": "lcrs.webp",
+      "border": "lcrs-border.webp",
+      "displayed_pixels": 51513,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.009474615255991617,
+      "sources": [
+        {
+          "source": "VII/203/catalog",
+          "sha256": "08b61f5568be2ce8c9d5c4995d56e4abdf7727d2b0668e9a1dcde67762678ff7"
+        }
+      ]
+    },
+    {
+      "id": "vipers",
+      "label": "VIPERS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#e6ad7b",
+      "image": "vipers.webp",
+      "border": "vipers-border.webp",
+      "displayed_pixels": 1233,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0003922581672668457,
+      "sources": [
+        {
+          "source": "J/A+A/562/A23/spectro",
+          "sha256": "b6679d04d956ca7b36f80be95fc6ee69a0c442a3feb90f4bb4407009473bb234"
+        }
+      ]
+    },
+    {
+      "id": "deep2",
+      "label": "DEEP2",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#80baca",
+      "image": "deep2.webp",
+      "border": "deep2-border.webp",
+      "displayed_pixels": 507,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 9.441375732421875e-05,
+      "sources": [
+        {
+          "source": "III/268/deep2all",
+          "sha256": "d24907002018789ca45d30ab6fde4e6d1d104434101021fb2febe98fd1e342bf"
+        }
+      ]
+    },
+    {
+      "id": "zcosmos",
+      "label": "zCOSMOS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#bd92ca",
+      "image": "zcosmos.webp",
+      "border": "zcosmos-border.webp",
+      "displayed_pixels": 167,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 4.704793294270834e-05,
+      "sources": [
+        {
+          "source": "J/ApJ/753/121/table5",
+          "sha256": "084129fc58fed5e8c35fb824b5a22e5a5210cc73f3cee1007943ca8fa7e12833"
+        }
+      ]
+    },
+    {
+      "id": "cnoc",
+      "label": "CNOC2",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#b1ba78",
+      "image": "cnoc.webp",
+      "border": "cnoc-border.webp",
+      "displayed_pixels": 90,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 1.5556812286376953e-05,
+      "sources": [
+        {
+          "source": "J/ApJS/129/475/cnoc0223",
+          "sha256": "acfc9fd50c2ca529e8a861cd6c689f7cb057b999ee51508df8b9e65b2ffff1ae"
+        }
+      ]
+    },
+    {
+      "id": "ages",
+      "label": "AGES",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#87bfa6",
+      "image": "ages.webp",
+      "border": "ages-border.webp",
+      "displayed_pixels": 365,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 1.2258688608805338e-05,
+      "sources": [
+        {
+          "source": "J/ApJS/200/8/table2",
+          "sha256": "96101482341216a5c18f5b0b0ccb38026f4682c29cfa790b896d02868c3e946d"
+        }
+      ]
+    },
+    {
+      "id": "mgc",
+      "label": "MGC",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#86a8df",
+      "image": "mgc.webp",
+      "border": "mgc-border.webp",
+      "displayed_pixels": 4103,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0010977387428283691,
+      "sources": [
+        {
+          "source": "VII/240/mgczcat",
+          "sha256": "de77e03486469827c5ab039094d5746e43bf2d62cd9ac1975599d462c10f8225"
+        }
+      ]
+    },
+    {
+      "id": "2mrs",
+      "label": "2MRS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#e1838a",
+      "image": "2mrs.webp",
+      "border": "2mrs-border.webp",
+      "displayed_pixels": 858374,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.007684290409088135,
+      "sources": [
+        {
+          "source": "J/ApJS/199/26/table3",
+          "sha256": "194c013f9aab4e893431b53caa60787c99803e515a33e760dc3fbde2bf1c1feb"
+        }
+      ]
+    },
+    {
+      "id": "pscz",
+      "label": "PSCz",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#dfb481",
+      "image": "pscz.webp",
+      "border": "pscz-border.webp",
+      "displayed_pixels": 280074,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.0030254920323689784,
+      "sources": [
+        {
+          "source": "VII/221/pscz",
+          "sha256": "7e3c9a6a695b91639406763a4a10f800666bceac34995eadac1aacb58c8393e8"
+        }
+      ]
+    },
+    {
+      "id": "cfa",
+      "label": "CfA",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#83acdb",
+      "image": "cfa.webp",
+      "border": "cfa-border.webp",
+      "displayed_pixels": 748226,
+      "operation": "extended",
+      "moc_order": 11,
+      "sky_fraction": 0.00879448652267456,
+      "sources": [
+        {
+          "source": "VII/193/zcat",
+          "sha256": "a2c70eeb5aeb35fb052c43e16f927661708485707a1b3dc0dc251c14682ac01b"
+        }
+      ]
+    },
+    {
+      "id": "vvds",
+      "label": "VVDS / VIMOS",
+      "groups": [
+        "spectroscopy"
+      ],
+      "color": "#e0ca7e",
+      "image": "vvds.webp",
+      "border": "vvds-border.webp",
+      "displayed_pixels": 825,
+      "operation": "vvds",
+      "moc_order": 11,
+      "sky_fraction": 0.00023533900578816735,
+      "sources": [
+        {
+          "source": "J/A+A/559/A14/cdfsdeep",
+          "sha256": "3e30ba564ef8bdb4b5ae9ff06cd65d199ed5af38c333a3f67d80897b88d45466"
+        },
+        {
+          "source": "J/A+A/559/A14/f02deep",
+          "sha256": "c80e1b176e6bc839501488a9bc92c1251b8c0b558cbe892a322c6f7058d6aafa"
+        },
+        {
+          "source": "J/A+A/559/A14/f02udeep",
+          "sha256": "2325c93cd757361f4123966373c229e7e6725608ade090538e79df656fc92577"
+        },
+        {
+          "source": "J/A+A/559/A14/f10wide",
+          "sha256": "b70c8a346815640e2f148f420ea44637bc82dab52f87861130e6cdbdcc7ad838"
+        },
+        {
+          "source": "J/A+A/559/A14/f14wide",
+          "sha256": "ef672c06890c26320d767296ff1ae1d2f9c6ea8b3c1e9482f8385d441930bf8e"
+        },
+        {
+          "source": "J/A+A/559/A14/f22wide",
+          "sha256": "cb9f8200cb62491b35802ee9920a1e0d31249ce7648ee7b138e431c009e5e440"
+        }
+      ]
+    }
+  ]
+}

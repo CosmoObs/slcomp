@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Drawer, Box, IconButton, Typography, Divider, Slider, TextField, Chip, Stack, Button, Collapse } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Drawer, Box, IconButton, Typography, Divider, Slider, ButtonBase, Chip, Stack, Button, Collapse } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
@@ -45,11 +45,6 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
     setLocalNumeric(init);
   }, [domain, numericFields, value.numeric]);
 
-  // No internal debounce — App.tsx debounces filters.jnameSearch once.
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ ...value, jnameSearch: e.target.value });
-  }, [value, onChange]);
-
   const toggleReference = (ref: string) => {
     const active = new Set(value.references);
     if(active.has(ref)) active.delete(ref); else active.add(ref);
@@ -69,10 +64,10 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
   };
 
   return (
-    <Drawer 
-      anchor="left" 
-      open={open} 
-      onClose={onClose} 
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 320, md: 360 },
@@ -84,26 +79,16 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
     >
       <Box sx={{ p:2, pb:1 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-          <Typography variant="h6" sx={{ fontSize: 16, fontWeight: 600 }}>Filters</Typography>
-          <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+          <Typography variant="h6">Refine results</Typography>
+          <IconButton size="small" onClick={onClose} aria-label="Close filters"><CloseIcon fontSize="small" /></IconButton>
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mb:1 }}>Showing {filteredCount} / {totalCount}</Typography>
-        <TextField
-          label="Search JNAME"
-          size="small"
-          fullWidth
-          value={value.jnameSearch}
-          onChange={handleSearchChange}
-          sx={{ mb: 2 }}
-        />
-        <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ cursor:'pointer', mb:1 }} onClick={()=> setRefsCollapsed(c=> !c)}>
-          <Typography variant="subtitle2">Reference Catalogs</Typography>
-          <IconButton size="small" sx={{ ml:1 }}>
-            {refsCollapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
-          </IconButton>
-        </Box>
-        <Collapse in={!refsCollapsed} timeout="auto" unmountOnExit>
-          <Box sx={{ maxHeight:500, overflowY:'auto', pr:0.5, mb:2, border:'1px solid rgba(255,255,255,0.08)', borderRadius:1, p:1, background:'rgba(255,255,255,0.04)' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb:1 }}>{filteredCount.toLocaleString()} of {totalCount.toLocaleString()} objects</Typography>
+        <ButtonBase onClick={() => setRefsCollapsed(c => !c)} aria-expanded={!refsCollapsed} aria-controls="reference-filters" sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', py: 1.5, mt: 1 }}>
+          <Typography variant="subtitle2">Reference catalogs</Typography>
+          {refsCollapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
+        </ButtonBase>
+        <Collapse id="reference-filters" in={!refsCollapsed} timeout="auto" unmountOnExit>
+          <Box sx={{ maxHeight:220, overflowY:'auto', pr:0.5, mb:2, border:'1px solid rgba(255,255,255,0.08)', borderRadius:1, p:1, background:'rgba(255,255,255,0.04)' }}>
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
               {allReferences.map(r => {
                 const active = value.references.includes(r);
@@ -120,8 +105,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
           const dom = domain[f.key];
           if(!dom) return null;
             const current = localNumeric[f.key] || [dom.min, dom.max];
-            const applied = value.numeric[f.key] || [dom.min, dom.max];
-            const isActive = value.numeric[f.key] != null && (applied[0] !== dom.min || applied[1] !== dom.max);
+            const isActive = value.numeric[f.key] != null;
             return (
               <Box key={f.key}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -135,6 +119,7 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
                   max={dom.max}
                   onChange={(_, val)=> updateNumericDrag(f.key, val as number[])}
                   onChangeCommitted={()=> commitNumeric(f.key)}
+                  getAriaLabel={() => f.label}
                   valueLabelDisplay="auto"
                   sx={{ mt: 1 }}
                 />
@@ -146,8 +131,8 @@ export const FiltersDrawer: React.FC<Props> = ({ open, onClose, allReferences, n
       </Box>
       <Divider sx={{ mx:2, my:1, opacity:0.3 }} />
       <Box display="flex" gap={1} sx={{ p:2, pt:1 }}>
-        <Button fullWidth size="small" variant="outlined" onClick={onReset}>Reset</Button>
-        <Button fullWidth size="small" variant="contained" onClick={onClose}>Close</Button>
+        <Button fullWidth size="small" variant="outlined" onClick={onReset}>Reset filters</Button>
+        <Button fullWidth size="small" variant="contained" onClick={onClose}>Show results</Button>
       </Box>
     </Drawer>
   );

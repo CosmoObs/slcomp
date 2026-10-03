@@ -1,25 +1,24 @@
 import React, { useMemo, useState, lazy, Suspense, useCallback } from 'react';
-import { AppBar, Box, Container, Tab, Tabs, Toolbar, Typography, Paper, IconButton, Tooltip, Button, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
+import { AppBar, Alert, Box, Chip, Collapse, Container, Divider, InputAdornment, LinearProgress, Tab, Tabs, TextField, Toolbar, Typography, Paper, IconButton, Tooltip, Button, CircularProgress } from '@mui/material';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import ClearAllIcon from '@mui/icons-material/ClearAll';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import PublicIcon from '@mui/icons-material/Public';
 import { useQuery } from '@tanstack/react-query';
-import { loadDatabase, loadConsolidated, loadDictionary, loadCutouts } from './api';
+import { loadCatalog, loadDetails, loadDictionary, dataBucket } from './api';
 const DataTables = lazy(() => import('./components/DataTables').then(m => ({ default: m.DataTables })));
 const CutoutGrid = lazy(() => import('./components/CutoutGrid').then(m => ({ default: m.CutoutGrid })));
 import { FiltersDrawer, FiltersState, NumericFilterConfig } from './components/FiltersDrawer';
 import { ObjectsTable } from './components/ObjectsTable';
-import { SkyMap } from './components/SkyMap';
+const ObservatorySurprise = lazy(() => import('./components/ObservatorySurprise').then(m => ({ default: m.ObservatorySurprise })));
+const SkyMap = lazy(() => import('./components/SkyMap').then(m => ({ default: m.SkyMap })));
+const EMPTY_DETAILS: ObjectDetails = { database: [], consolidated: [], cutouts: [] };
+const EMPTY_OBJECTS: import('./api').CatalogObject[] = [];
+const EMPTY_DOMAIN: Record<string, { min: number; max: number }> = {};
 import { useDebounce } from './hooks/useDebounce';
-import type { CutoutRecord, DataRecord, ConsolidatedRecord } from './types';
-
-interface SkyMapObject {
-  JNAME: string;
-  RA?: number | null;
-  DEC?: number | null;
-  z_L?: number | null;
-  z_S?: number | null;
-  [key: string]: unknown;
-}
+import type { CutoutRecord } from './types';
+import type { ObjectDetails } from './api';
 
 const NUMERIC_FIELDS = [
   { key: 'RA', label: 'RA' },
@@ -34,66 +33,30 @@ const isFiltersEmpty = (f: FiltersState) =>
   !f.jnameSearch && f.references.length === 0 &&
   Object.values(f.numeric).every(v => v == null);
 
-const toNum = (x: unknown): number | null => {
-  if (typeof x === 'number') return isNaN(x) ? null : x;
-  if (typeof x === 'string') {
-    const v = parseFloat(x);
-    return isNaN(v) ? null : v;
-  }
-  return null;
-};
-
 function tabProps(index: number) {
   return { id: `tab-${index}`, 'aria-controls': `tabpanel-${index}` };
 }
 
 const App: React.FC = () => {
-  const { data: database = [], isLoading: dbLoading, error: dbError } = useQuery({ queryKey: ['db'], queryFn: loadDatabase });
-  const { data: consolidated = [], isLoading: consLoading, error: consError } = useQuery({ queryKey: ['cons'], queryFn: loadConsolidated });
-  const { data: dictionary = {} as Record<string, unknown>, isLoading: dictLoading, error: dictError } = useQuery({ queryKey: ['dict'], queryFn: loadDictionary });
-  const { data: cutouts = [], isLoading: cutoutsLoading, error: cutoutsError } = useQuery({ queryKey: ['cutouts'], queryFn: loadCutouts });
-
+  const { data: catalog, isLoading: dbLoading, error: dbError } = useQuery({ queryKey: ['catalog'], queryFn: ({ signal }) => loadCatalog(signal), staleTime: Infinity });
+  const { data: dictionary = {} as Record<string, unknown>, isLoading: dictLoading, error: dictError } = useQuery({ queryKey: ['dict'], queryFn: loadDictionary, staleTime: Infinity });
   const references = useMemo(() => Object.keys(dictionary), [dictionary]);
   const [jname, setJName] = useState<string>('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS);
   const [tab, setTab] = useState(0);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [surpriseOpen, setSurpriseOpen] = useState(false);
 
-  // Single pass: build unique baseObjects + per-field [min,max] domain.
-  // Loop-based min/max avoids stack overflow on Math.min(...) for large arrays.
-  const { baseObjects, domain } = useMemo(() => {
-    const seen = new Map<string, SkyMapObject>();
-    const dom: Record<string, { min: number; max: number }> = {};
-    const initDom = (k: string, v: number) => {
-      const d = dom[k];
-      if (!d) dom[k] = { min: v, max: v };
-      else { if (v < d.min) d.min = v; if (v > d.max) d.max = v; }
-    };
-
-    for (const r of database) {
-      if (!r?.JNAME) continue;
-      const RA = toNum(r.RA);
-      const DEC = toNum(r.DEC);
-      const z_L = toNum(r.z_L);
-      const z_S = toNum(r.z_S);
-      if (RA != null) initDom('RA', RA);
-      if (DEC != null) initDom('DEC', DEC);
-      if (z_L != null) initDom('z_L', z_L);
-      if (z_S != null) initDom('z_S', z_S);
-
-      const cur = seen.get(r.JNAME);
-      if (!cur) {
-        seen.set(r.JNAME, { JNAME: r.JNAME, RA, DEC, z_L, z_S });
-      } else {
-        if (cur.RA == null) cur.RA = RA;
-        if (cur.DEC == null) cur.DEC = DEC;
-        if (cur.z_L == null) cur.z_L = z_L;
-        if (cur.z_S == null) cur.z_S = z_S;
-      }
-    }
-    return { baseObjects: Array.from(seen.values()), domain: dom };
-  }, [database]);
-
+  const baseObjects = catalog?.objects ?? EMPTY_OBJECTS;
+  const domain = catalog?.domain ?? EMPTY_DOMAIN;
+  const bucket = dataBucket(jname);
+  const selectDetails = useCallback((shard: Record<string, ObjectDetails>) => shard[jname] ?? EMPTY_DETAILS, [jname]);
+  const { data: details = EMPTY_DETAILS, isLoading: detailsLoading, error: detailsError } = useQuery({
+    queryKey: ['object-details', bucket], enabled: !!jname,
+    queryFn: ({ signal }) => loadDetails(bucket, signal), select: selectDetails,
+    staleTime: Infinity, gcTime: 2 * 60 * 1000
+  });
   // JNAME -> set of references (built once per dictionary).
   const jnameToRefs = useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -108,37 +71,6 @@ const App: React.FC = () => {
     }
     return map;
   }, [references, dictionary]);
-
-  // Indexes for O(1) lookup of per-JNAME slices.
-  const dbByJname = useMemo(() => {
-    const m = new Map<string, DataRecord[]>();
-    for (const r of database) {
-      if (!r?.JNAME) continue;
-      const arr = m.get(r.JNAME);
-      if (arr) arr.push(r); else m.set(r.JNAME, [r]);
-    }
-    return m;
-  }, [database]);
-
-  const consByJname = useMemo(() => {
-    const m = new Map<string, ConsolidatedRecord[]>();
-    for (const r of consolidated) {
-      if (!r?.JNAME) continue;
-      const arr = m.get(r.JNAME);
-      if (arr) arr.push(r); else m.set(r.JNAME, [r]);
-    }
-    return m;
-  }, [consolidated]);
-
-  const cutoutsByJname = useMemo(() => {
-    const m = new Map<string, CutoutRecord[]>();
-    for (const c of cutouts) {
-      if (!c?.JNAME) continue;
-      const arr = m.get(c.JNAME);
-      if (arr) arr.push(c); else m.set(c.JNAME, [c]);
-    }
-    return m;
-  }, [cutouts]);
 
   const activeNumericKeys = useMemo(
     () => Object.entries(filters.numeric).filter(([, v]) => !!v).map(([k]) => k),
@@ -176,10 +108,20 @@ const App: React.FC = () => {
     });
   }, [baseObjects, debouncedSearch, filters.references, filters.numeric, jnameToRefs, activeNumericKeys]);
 
-  const filteredDb = useMemo(() => (jname ? dbByJname.get(jname) ?? [] : []), [dbByJname, jname]);
-  const filteredCons = useMemo(() => (jname ? consByJname.get(jname) ?? [] : []), [consByJname, jname]);
-  const filteredCutouts = useMemo(() => (jname ? cutoutsByJname.get(jname) ?? [] : []), [cutoutsByJname, jname]);
-  const surveys = useMemo(() => Array.from(new Set(filteredCutouts.map(c => String(c.survey)))).sort(), [filteredCutouts]);
+  const filteredDb = details.database;
+  const filteredCons = details.consolidated;
+  const filteredCutouts = details.cutouts;
+  const surveyImages = useMemo(() => {
+    const groups = new Map<string, CutoutRecord[]>();
+    for (const cutout of filteredCutouts) {
+      const group = groups.get(cutout.survey);
+      if (group) group.push(cutout); else groups.set(cutout.survey, [cutout]);
+    }
+    const rank = (c: CutoutRecord) => String(c.band).toLowerCase() === 'lsb' ? 0 : String(c.band).toLowerCase() === 'trilogy' ? 1 : 2;
+    return Array.from(groups).sort(([a], [b]) => a.localeCompare(b)).map(([survey, images]) => ({
+      survey, images: images.sort((a, b) => rank(a) - rank(b) || String(a.band).localeCompare(String(b.band)))
+    }));
+  }, [filteredCutouts]);
 
   const resetFilters = useCallback(() => setFilters(EMPTY_FILTERS), []);
   const handleDrawerToggle = useCallback(() => setDrawerOpen(p => !p), []);
@@ -189,161 +131,138 @@ const App: React.FC = () => {
 
   const allReferences = useMemo(() => [...references].sort(), [references]);
 
-  const anyLoading = dbLoading || consLoading || dictLoading || cutoutsLoading;
-  const anyError = dbError || consError || dictError || cutoutsError;
-  const theme = useTheme();
-  const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
-  const panelHeight = isMdUp ? 360 : 300;
-
-  if (anyLoading && !database.length) {
-    return (
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar position="static" color="transparent" elevation={0}>
-          <Toolbar>
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
-          </Toolbar>
-        </AppBar>
-        <Container maxWidth="xl" sx={{ py: 3 }}>
-          <Paper sx={{ p: 6, textAlign: 'center', mb: 3 }}>
-            <CircularProgress size={40} sx={{ mb: 2 }} />
-            <Typography variant="body2" color="text.secondary">Loading astronomical data...</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              This may take a moment for large datasets
-            </Typography>
-          </Paper>
-        </Container>
-      </Box>
-    );
-  }
+  const anyLoading = dbLoading || dictLoading || (!!jname && detailsLoading);
+  const anyError = dbError || dictError || detailsError;
+  const selectedObject = useMemo(() => baseObjects.find(o => o.JNAME === jname), [baseObjects, jname]);
+  const handleSurprise = useCallback(() => setSurpriseOpen(true), []);
+  const advancedFilterCount = filters.references.length + activeNumericKeys.length;
+  const formatValue = (value: unknown, digits: number) =>
+    typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—';
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static" color="transparent" elevation={0}>
-        <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
-            <img src="https://raw.githubusercontent.com/CosmoObs/slcomp/refs/heads/main/.figures/slcomp.png" alt="SLComp Logo" style={{ height: 32, width: 80, marginRight: 8, borderRadius: 1, background: '#000' }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: 0.5 }}>The LaStBeRu Explorer</Typography>
-          </Box>
-          <Box flexGrow={1} />
-          <Tooltip title="Filters">
-            <IconButton color="primary" onClick={handleDrawerToggle} size="small"><FilterAltIcon /></IconButton>
+    <Box sx={{ minHeight: '100vh' }}>
+      <AppBar position="static" elevation={0}>
+        <Toolbar sx={{ gap: 2, maxWidth: 1440, width: '100%', mx: 'auto', px: { xs: 2, md: 4 } }}>
+          <Box component="img" src={`${import.meta.env.BASE_URL}slcomp.webp`} alt="SLComp" sx={{ width: 88, height: 38, objectFit: 'contain' }} />
+          <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>LaStBeRu Explorer</Typography>
+          <Tooltip title="View repository on GitHub">
+            <IconButton component="a" href="https://github.com/CosmoObs/slcomp" target="_blank" rel="noopener noreferrer" aria-label="View repository on GitHub">
+              <GitHubIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
-          <Tooltip title="Reset Filters">
-            <span>
-              <IconButton color="inherit" onClick={resetFilters} size="small" disabled={isFiltersEmpty(filters)}><ClearAllIcon /></IconButton>
-            </span>
-          </Tooltip>
-          <Box sx={{ ml: 2 }}>
-            <Tooltip title="slcomp Repository">
-              <IconButton
-                color="inherit"
-                component="a"
-                href="https://github.com/CosmoObs/slcomp"
-                target="_blank"
-                rel="noopener noreferrer"
-                size="small"
-                sx={{ p: 0 }}
-              >
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" style={{ height: 28, width: 28, borderRadius: '50%' }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="xl" sx={{ py: 3 }}>
-        {anyLoading && (
-          <Paper sx={{ p: 6, textAlign: 'center', mb: 3 }}>
-            <CircularProgress size={40} sx={{ mb: 2 }} />
-            <Typography variant="body2" color="text.secondary">Loading data...</Typography>
-          </Paper>
-        )}
-        {anyError && (
-          <Paper sx={{ p: 4, mb: 3, background: 'linear-gradient(135deg,#281010,#1c0c0c)', border: '1px solid #552' }}>
-            <Typography variant="h6" gutterBottom>Error loading data</Typography>
-            <Typography variant="body2" color="text.secondary">{String(anyError)}</Typography>
-          </Paper>
-        )}
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Box display="flex" gap={2} alignItems="stretch" sx={{ flexDirection: { xs: 'column', md: 'row' } }}>
-            <Box
-              sx={{
-                flex: { xs: '1 1 auto', md: '0 0 260px' },
-                width: { xs: '100%', md: 260 },
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0,
-                height: { md: panelHeight }
+      <Container maxWidth={false} component="main" sx={{ maxWidth: 1440, px: { xs: 2, md: 4 }, py: { xs: 3, md: 4 } }}>
+        <Typography variant="h4" sx={{ mb: 3 }}>Explore LaStBeRu objects</Typography>
+
+        {anyError && <Alert severity="error" sx={{ mb: 2 }}>Could not load catalog data. {String(anyError)}</Alert>}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              placeholder="Search JNAME, e.g. J084317.9+230501.2"
+              value={filters.jnameSearch}
+              onChange={e => setFilters(prev => ({ ...prev, jnameSearch: e.target.value }))}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && filteredObjects.length === 1 && filters.jnameSearch.trim().toLowerCase() === debouncedSearch.trim().toLowerCase()) {
+                  handleJNameSelect(filteredObjects[0].JNAME);
+                }
               }}
-            >
-              <Box sx={{ flex: 1, minHeight: 0 }}>
-                <ObjectsTable
-                  objects={filteredObjects}
-                  onSelect={handleJNameSelect}
-                  selected={jname}
-                  height={panelHeight}
-                />
-              </Box>
-            </Box>
-            <Box flex={1} minWidth={0} sx={{ height: panelHeight }}>
-              <SkyMap
-                objects={filteredObjects}
-                selected={jname}
-                onSelect={handleJNameSelect}
-                height={panelHeight}
-              />
-            </Box>
+              inputProps={{ 'aria-label': 'Search catalog by JNAME' }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
+                endAdornment: filters.jnameSearch ? <InputAdornment position="end"><IconButton size="small" aria-label="Clear search" onClick={() => setFilters(prev => ({ ...prev, jnameSearch: '' }))}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : undefined
+              }}
+              sx={{ flex: '1 1 300px' }}
+            />
+            <Button variant="text" startIcon={<FilterAltIcon />} onClick={handleDrawerToggle} sx={{ height: 48 }}>
+              Filters{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ''}
+            </Button>
           </Box>
-          {jname && <Box sx={{ mt: 1, textAlign: 'left' }}><Button size="small" onClick={handleJNameClear}>Clear selection</Button></Box>}
-        </Paper>
-        {jname ? (
-          <Paper sx={{ p: 2 }}>
-            <Tabs value={tab} onChange={handleTabChange} textColor="primary" indicatorColor="primary" variant="scrollable">
-              <Tab label="Data" {...tabProps(0)} />
-              <Tab label="Cutouts" {...tabProps(1)} />
-            </Tabs>
-            <Box mt={3}>
-              <Suspense fallback={<Typography variant="body2" color="text.secondary">Loading module...</Typography>}>
-                {tab === 0 && (
-                  <DataTables database={filteredDb} consolidated={filteredCons} />
-                )}
-                {tab === 1 && (
-                  <Box>
-                    {surveys.map(s => {
-                      const sortBands = (a: CutoutRecord, b: CutoutRecord) => {
-                        const al = String(a.band).toLowerCase();
-                        const bl = String(b.band).toLowerCase();
-                        const rank = (x: string) => x === 'lsb' ? 0 : x === 'trilogy' ? 1 : 2;
-                        const ra = rank(al); const rb = rank(bl);
-                        if (ra !== rb) return ra - rb;
-                        return al.localeCompare(bl);
-                      };
-                      const cutoutsBySurvey = filteredCutouts.filter(c => c.survey === s).sort(sortBands);
-                      return <CutoutGrid key={s} survey={s} cutouts={cutoutsBySurvey} />;
-                    })}
-                  </Box>
-                )}
-              </Suspense>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5, flexWrap: 'wrap' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }} aria-live="polite">
+              {dbLoading ? 'Loading catalog…' : `${filteredObjects.length.toLocaleString()} of ${baseObjects.length.toLocaleString()} objects`}
+            </Typography>
+            {!isFiltersEmpty(filters) && <Button size="small" onClick={resetFilters}>Reset filters</Button>}
+            <Button size="small" startIcon={<PublicIcon />} onClick={() => setMapOpen(prev => !prev)} aria-expanded={mapOpen} aria-controls="sky-map-panel" color={mapOpen ? 'primary' : 'inherit'}>
+              {mapOpen ? 'Hide sky map' : 'Show sky map'}
+            </Button>
+          </Box>
+          {advancedFilterCount > 0 && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+              {filters.references.map(ref => <Chip key={ref} label={ref} size="small" onDelete={() => setFilters(prev => ({ ...prev, references: prev.references.filter(r => r !== ref) }))} />)}
+              {activeNumericKeys.map(key => <Chip key={key} label={`${key}: ${filters.numeric[key]!.map(v => Number(v.toFixed(3))).join(' – ')}`} size="small" onDelete={() => setFilters(prev => ({ ...prev, numeric: { ...prev.numeric, [key]: null } }))} />)}
             </Box>
+          )}
+        </Box>
+
+        <Collapse in={mapOpen} unmountOnExit>
+          <Box id="sky-map-panel" sx={{ mb: 3 }}>
+            <Suspense fallback={<CircularProgress size={24} />}><SkyMap objects={filteredObjects} selected={jname} onSelect={handleJNameSelect} onSurprise={handleSurprise} height={280} /></Suspense>
+          </Box>
+        </Collapse>
+
+        {dbLoading && !baseObjects.length ? (
+          <Paper sx={{ py: 10, textAlign: 'center' }}>
+            <CircularProgress size={28} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Loading the catalog…</Typography>
           </Paper>
         ) : (
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="h5" gutterBottom>Select an object</Typography>
-            <Typography variant="body1" color="text.secondary">Use the panel for filters to refine your search and click on a JNAME in the table.</Typography>
-          </Paper>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '320px minmax(0, 1fr)' }, gap: { xs: 3, md: 4 }, alignItems: 'start' }}>
+            <ObjectsTable objects={filteredObjects} onSelect={handleJNameSelect} selected={jname} height={540} />
+            <Paper sx={{ minWidth: 0, overflow: 'hidden', minHeight: { md: 540 } }}>
+              {jname ? (
+                <>
+                  <Box sx={{ p: { xs: 2, md: 3 } }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 1 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="overline" color="text.secondary">Object details</Typography>
+                        <Typography variant="h5" sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}>{jname}</Typography>
+                      </Box>
+                      <Tooltip title="Clear selection"><IconButton size="small" onClick={handleJNameClear} aria-label="Clear selection"><CloseIcon fontSize="small" /></IconButton></Tooltip>
+                    </Box>
+                    {!filteredObjects.some(o => o.JNAME === jname) && <Chip size="small" label="Outside current results" sx={{ mt: 1 }} />}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, md: 2 }, mt: 3 }}>
+                      {[['RA (°)', formatValue(selectedObject?.RA, 5)], ['DEC (°)', formatValue(selectedObject?.DEC, 5)], ['Lens z', formatValue(selectedObject?.z_L, 3)], ['Source z', formatValue(selectedObject?.z_S, 3)]].map(([label, value]) => (
+                        <Box key={label}>
+                          <Typography variant="caption" color="text.secondary">{label}</Typography>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 0.5, overflowWrap: 'anywhere' }}>{value}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>Summary from catalog records. See the tables below for reported values.</Typography>
+                  </Box>
+                  <Divider />
+                  <Tabs value={tab} onChange={handleTabChange} variant="scrollable" sx={{ px: { xs: 2, md: 3 } }}>
+                    <Tab label={`Records (${selectedObject?.recordCount ?? filteredDb.length})`} {...tabProps(0)} />
+                    <Tab label={`Images (${selectedObject?.imageCount ?? filteredCutouts.length})`} {...tabProps(1)} />
+                  </Tabs>
+                  {anyLoading && <LinearProgress />}
+                  <Box role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} sx={{ p: { xs: 2, md: 3 } }}>
+                    <Suspense fallback={<Typography variant="body2" color="text.secondary">Loading details…</Typography>}>
+                      {detailsLoading ? <Typography variant="body2" color="text.secondary">Loading details…</Typography> : <>
+                        {tab === 0 && <DataTables database={filteredDb} consolidated={filteredCons} />}
+                        {tab === 1 && (filteredCutouts.length ? surveyImages.map(({ survey, images }) =>
+                          <CutoutGrid key={survey} survey={survey} cutouts={images} />
+                        ) : <Typography variant="body2" color="text.secondary">No cutout images available for this object.</Typography>)}
+                      </>}
+                    </Suspense>
+                  </Box>
+                </>
+              ) : (
+                <Box sx={{ minHeight: { xs: 300, md: 538 }, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', px: 3, textAlign: 'center' }}>
+                  <SearchIcon sx={{ color: 'text.secondary', fontSize: 32, mb: 2 }} />
+                  <Typography variant="h6" sx={{ mb: 1 }}>Explore an object</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 330 }}>Select a JNAME from the results to view its coordinates, catalog records and survey images.</Typography>
+
+                </Box>
+              )}
+            </Paper>
+          </Box>
         )}
       </Container>
-      <FiltersDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        allReferences={allReferences}
-        numericFields={NUMERIC_FIELDS}
-        domain={domain}
-        value={filters}
-        onChange={setFilters}
-        onReset={resetFilters}
-        totalCount={database.length}
-        filteredCount={filteredObjects.length}
-      />
+      {surpriseOpen && <Suspense fallback={<CircularProgress size={24} />}><ObservatorySurprise open onClose={() => setSurpriseOpen(false)} /></Suspense>}
+      <FiltersDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} allReferences={allReferences} numericFields={NUMERIC_FIELDS} domain={domain} value={filters} onChange={setFilters} onReset={resetFilters} totalCount={baseObjects.length} filteredCount={filteredObjects.length} />
     </Box>
   );
 };

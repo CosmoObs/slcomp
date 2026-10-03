@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 // For GitHub Pages deployment: set BASE_PATH environment variable to your repo name
 // Example: export BASE_PATH=/slcomp/ before building
@@ -7,7 +9,15 @@ const basePath = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,
-  plugins: [react()],
+  plugins: [react(), {
+    name: 'omit-source-catalogs',
+    // Originals feed the exporter; browsers use the compact index and shards.
+    closeBundle() {
+      for (const file of ['database.json', 'consolidated_database.json', 'cutouts.json']) {
+        rmSync(resolve(__dirname, 'dist/data', file), { force: true });
+      }
+    }
+  }],
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 1100,

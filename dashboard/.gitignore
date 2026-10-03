@@ -20,3 +20,9 @@ tsbuildinfo.tsbuildinfo
 
 # Coverage / tests (future)
 coverage/
+
+# Generated browser detail shards and local footprint downloads
+public/data/objects/
+public/data/objects.tmp/
+public/data/*.tmp
+.cache/footprints/

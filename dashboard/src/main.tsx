@@ -5,12 +5,12 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import { catalogTheme } from './theme';
 import App from './App';
 
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: any}> {
-  constructor(props:any){
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: unknown}> {
+  constructor(props: { children: React.ReactNode }){
     super(props); this.state = { error: null };
   }
-  static getDerivedStateFromError(error:any){ return { error }; }
-  componentDidCatch(err:any, info:any){ console.error('App crashed:', err, info); }
+  static getDerivedStateFromError(error: unknown){ return { error }; }
+  componentDidCatch(err: Error, info: React.ErrorInfo){ console.error('App crashed:', err, info); }
   render(){
     if(this.state.error){
       return <div style={{padding:24,fontFamily:'monospace',color:'#eee'}}>

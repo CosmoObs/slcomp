@@ -11,11 +11,11 @@ interface Props {
 
 export const CutoutGrid: React.FC<Props> = memo(({ survey, cutouts }) => {
   return (
-    <Box mt={2}>
+    <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom>{survey}</Typography>
       <Grid container spacing={2}>
         {cutouts.map(c => (
-          <Grid item key={c.file_path} xs={6} sm={4} lg={3}>
+          <Grid key={c.file_path} size={{ xs: 6, sm: 4, lg: 3 }}>
             <CutoutCard record={c} />
           </Grid>
         ))}
@@ -55,7 +55,7 @@ const CutoutCard: React.FC<{ record: CutoutRecord }> = memo(({ record }) => {
   return (
     <Paper ref={cardRef} sx={{ p: 0, textAlign: 'center' }}>
       <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>{record.band}</Typography>
-      <Box mt={1} sx={{ position: 'relative', width: '100%', maxWidth: 220, mx: 'auto' }}>
+      <Box sx={{ mt: 1, position: 'relative', width: '100%', maxWidth: 220, mx: 'auto' }}>
         <Box sx={{ position: 'relative', width: '100%', pt: '100%', borderRadius: 0, overflow: 'hidden', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {isLoading && <Skeleton variant="rectangular" width="100%" height="100%" sx={{ position: 'absolute', inset: 0 }} />}
           {!isLoading && data && !imgError && (

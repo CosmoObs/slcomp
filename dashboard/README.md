@@ -8,9 +8,17 @@ Interactive dashboard for exploring astronomical lens data.
 * Data & consolidated parameter tables
 * Image cutout gallery
 
+## Requirements
+
+The dashboard uses Node 24 LTS/npm 11, React 19, Material UI 9 and Vite 8.
+The MinIO exporter uses Python 3.14, pandas 3 and PyArrow. TypeScript stays
+on version 6 because the ESLint integration currently supports versions below
+6.1; see [typescript-eslint compatibility](https://typescript-eslint.io/users/dependency-versions/).
+
 ## Quick Start
 ```bash
-npm install
+nvm use          # Node 24 LTS, npm 11
+npm ci
 npm run dev      # http://localhost:5173
 ```
 
@@ -38,7 +46,9 @@ Edit `src/theme.ts` (palette, breakpoints, shadows, transitions).
 ```bash
 npm run dev    # Start dev server
 npm run build  # Production bundle
-npm run lint   # ESLint
+npm run lint   # ESLint, including scripts/configuration; zero warnings
+npm run typecheck # TypeScript source and Vite configuration
+npm run check  # Lint, typecheck and export regression tests
 npm test       # Export/provenance regression tests
 ```
 
@@ -51,12 +61,41 @@ export BASE_PATH=/slcomp/
 npm run build
 ```
 
-Then publish the contents of `dist/` to the `gh-pages` branch (or use an action). The data loader code uses `import.meta.env.BASE_URL` to construct paths like `<BASE_URL>data/database.json`, avoiding the common `Unexpected token '<'` JSON parse error that happens when a 404 HTML page is fetched instead of the JSON file.
+`.github/workflows/dashboard-ci.yml` checks pull requests with deterministic
+example data, without MinIO credentials. It runs the Python export test, lint, type checking, JavaScript regression
+tests, the production build and artifact checks (Pages paths, all 256 detail
+shards, WebP assets and omission of redundant source catalogs).
 
-If you see that error after deployment, confirm:
-1. The JSON files exist in `dist/data/` (they are copied from `public/data/`).
-2. `BASE_PATH` matched the repository subpath and ends with a trailing slash.
-3. Browser network panel requests resolve to `200` and not `404`/`301`.
+`.github/workflows/deploy.yml` exports real data from MinIO and publishes the
+Pages artifact after a push to `main` or `streamlit`, or a manual run on either
+branch. Both workflows use Ubuntu 24.04, Node 24, dependency caches and Actions
+pinned to release commit hashes. Deployment permissions belong to the deploy
+job. Dependabot checks npm dependencies and Actions monthly.
+
+Install the reproducible exporter environment with:
+
+```bash
+python3.14 -m venv .venv
+.venv/bin/python -m pip install --require-hashes -r requirements-deploy.txt
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+# Export real data with MINIO_ENDPOINT_URL, MINIO_ACCESS_KEY and MINIO_SECRET_KEY:
+.venv/bin/python prepare_data.py
+```
+
+To refresh the Python lock after editing `requirements-deploy.in`, from the
+repository root:
+
+```bash
+uv pip compile dashboard/requirements-deploy.in --python-version 3.14 \
+  --generate-hashes -o dashboard/requirements-deploy.txt
+```
+
+The fixture generator (`node scripts/prepare-ci-data.mjs`) overwrites
+`public/data/` and is intended for a disposable checkout. Keep real local data
+when building outside CI. After a Pages build, run
+`node scripts/check-build.mjs` to validate the artifact. The browser loads
+`<BASE_URL>data/catalog.json` and object shards; ensure `BASE_PATH` includes the
+repository subpath and trailing slash when publishing.
 
 
 ## Sky coverage layers

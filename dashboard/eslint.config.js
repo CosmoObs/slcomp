@@ -1,28 +1,30 @@
-export default [
+import js from '@eslint/js';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+
+export default defineConfig([
+  globalIgnores(['dist/**', 'node_modules/**', 'public/**', '.cache/**']),
   {
-    ignores: ['dist/', 'node_modules/', '*.config.js'],
+    files: ['**/*.{js,mjs}'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'vite.config.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
+    rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }] },
   },
   {
     files: ['src/**/*.{ts,tsx}'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      parser: await import('@typescript-eslint/parser').then(m => m.default),
-      parserOptions: {
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    plugins: {
-      '@typescript-eslint': await import('@typescript-eslint/eslint-plugin').then(m => m.default),
-      'react-hooks': await import('eslint-plugin-react-hooks').then(m => m.default),
-      'react-refresh': await import('eslint-plugin-react-refresh').then(m => m.default),
-    },
+    plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-hooks/exhaustive-deps': 'error',
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
   },
-];
+]);

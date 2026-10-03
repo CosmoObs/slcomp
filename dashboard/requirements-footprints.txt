@@ -1,6 +1,6 @@
 # Optional regeneration dependencies; website builds use versioned assets.
 mocpy==0.20.0
-astropy>=6,<8
-numpy>=1.26,<3
-Pillow>=10,<13
-scipy>=1.12,<2
+astropy>=8.0.1,<9
+numpy>=2.5.3,<3
+Pillow>=12.3.0,<13
+scipy>=1.18.1,<2

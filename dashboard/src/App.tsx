@@ -168,10 +168,12 @@ const App: React.FC = () => {
                   handleJNameSelect(filteredObjects[0].JNAME);
                 }
               }}
-              inputProps={{ 'aria-label': 'Search catalog by JNAME' }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
-                endAdornment: filters.jnameSearch ? <InputAdornment position="end"><IconButton size="small" aria-label="Clear search" onClick={() => setFilters(prev => ({ ...prev, jnameSearch: '' }))}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : undefined
+              slotProps={{
+                htmlInput: { 'aria-label': 'Search catalog by JNAME' },
+                input: {
+                  startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
+                  endAdornment: filters.jnameSearch ? <InputAdornment position="end"><IconButton size="small" aria-label="Clear search" onClick={() => setFilters(prev => ({ ...prev, jnameSearch: '' }))}><CloseIcon fontSize="small" /></IconButton></InputAdornment> : undefined
+                }
               }}
               sx={{ flex: '1 1 300px' }}
             />

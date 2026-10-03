@@ -112,7 +112,7 @@ const SimpleTable: React.FC<SimpleTableProps> = ({ rows }) => {
 
 export const DataTables: React.FC<Props> = ({ database, consolidated }) => {
   return (
-    <Box display="flex" flexDirection="column" gap={3}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box>
         <Typography variant="h6" sx={{ mb: 1, textAlign: 'left' }}>Catalog records</Typography>
         <SimpleTable rows={database as Record<string, unknown>[]} />

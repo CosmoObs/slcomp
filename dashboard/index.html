@@ -10,7 +10,8 @@
       (only same-origin or explicitly-fetched URLs reach the page). For a
       stricter prod-only policy, set the CSP via server headers and drop them.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" />
+    <!-- frame-ancestors requires an HTTP response header; it is ignored in meta CSP. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self';" />
     <title>The LaStBeRu Explorer</title>
     <link rel="icon" type="image/png" href="telescope.png" />
     <style>

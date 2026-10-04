@@ -12,7 +12,7 @@ Interactive dashboard for exploring astronomical lens data.
 
 The dashboard uses Node 24 LTS/npm 11, React 19, Material UI 9 and Vite 8.
 The MinIO exporter uses Python 3.14, pandas 3 and PyArrow. TypeScript stays
-on version 6 because the ESLint integration currently supports versions below
+on the 6.0 patch line because the ESLint integration currently supports versions below
 6.1; see [typescript-eslint compatibility](https://typescript-eslint.io/users/dependency-versions/).
 
 ## Quick Start
@@ -70,7 +70,11 @@ shards, WebP assets and omission of redundant source catalogs).
 Pages artifact after a push to `main` or `streamlit`, or a manual run on either
 branch. Both workflows use Ubuntu 24.04, Node 24, dependency caches and Actions
 pinned to release commit hashes. Deployment permissions belong to the deploy
-job. Dependabot checks npm dependencies and Actions monthly.
+job. Both build checkouts disable credential persistence. Dependabot checks npm
+dependencies and Actions monthly, allowing Node 24 type updates and TypeScript
+6.0 patches. Newer Node types or TypeScript versions require a coordinated runtime
+or ESLint migration; the ignore rules in `.github/dependabot.yml` must be reviewed
+when that compatibility changes.
 
 Install the reproducible exporter environment with:
 

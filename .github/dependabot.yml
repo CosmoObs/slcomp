@@ -4,6 +4,13 @@ updates:
     directory: /dashboard
     schedule:
       interval: monthly
+    ignore:
+      # Keep the compiler within typescript-eslint's supported API range.
+      - dependency-name: typescript
+        versions: ['>=6.1.0']
+      # Node types must match the Node 24 runtime in .nvmrc and CI.
+      - dependency-name: '@types/node'
+        versions: ['>=25.0.0']
     groups:
       react:
         patterns: [react, react-dom, '@types/react*']

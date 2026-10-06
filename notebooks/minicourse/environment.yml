@@ -1,0 +1,33 @@
+#   conda env create -f environment.yml
+#   conda activate lastberu
+#   jupyter lab
+name: lastberu
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  # Notebooks
+  - jupyterlab>=4.1
+  - ipykernel
+  - ipywidgets
+  # Data handling
+  - numpy
+  - pandas
+  - pyarrow
+  - matplotlib
+  # Astronomy
+  - astropy>=8
+  - astroquery
+  - pyvo
+  - scipy
+  # Data access
+  - minio
+  - psycopg2
+  # Optional binaries
+  - minio-server
+  - minio-client
+  - postgresql
+  - pip
+  - pip:
+      # Cross-matching tool
+      - git+https://github.com/oliveirara/xmatch

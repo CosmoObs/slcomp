@@ -1,0 +1,36 @@
+#   uv venv
+#   source .venv/bin/activate
+#   uv sync
+#   uv run python -m ipykernel install --user --name lastberu --display-name "Python (LaStBeRu)"
+#   uv run jupyter lab
+[project]
+name = "lastberu-minicourse"
+version = "2026.10"
+description = "Minicourse notebooks for the LaStBeRu strong lensing compilation"
+requires-python = "==3.12.*"
+dependencies = [
+    "jupyterlab>=4.1",
+    "ipykernel",
+    "ipywidgets",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "matplotlib",
+    "astropy>=8",
+    "astroquery",
+    "pyvo",
+    "scipy",
+    "requests",
+    "minio",            # S3 object storage
+    "psycopg2-binary",  # PostgreSQL client
+]
+
+[dependency-groups]
+dev = ["xmatch"]
+
+[tool.uv]
+package = false
+default-groups = []
+
+[tool.uv.sources]
+xmatch = { git = "https://github.com/oliveirara/xmatch" }

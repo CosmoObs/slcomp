@@ -4,19 +4,6 @@
 
 ## Before the course: set up the environment
 
-### Already set up for the PyAutoLens course?
-
-If you created the `modelling` conda environment for the *Modelling Strong Lenses with PyAutoLens* course, add the six missing packages to it and you are ready (this does not change any package of that course):
-
-```bash
-conda activate modelling
-pip install astroquery pyvo minio pyarrow psycopg2-binary ipywidgets
-git clone https://github.com/CosmoObs/slcomp.git
-jupyter lab slcomp/notebooks/minicourse
-```
-
-Otherwise, follow the steps below.
-
 ### Standalone environment with uv
 
 [uv](https://docs.astral.sh/uv/) is a fast Python package and project manager: it installs everything in seconds, downloads a suitable Python if needed, and pins the versions in `uv.lock`, so everyone gets the same environment.
@@ -63,7 +50,7 @@ The kernel appears as **Python (LaStBeRu)** in any Jupyter installation and in V
 <details>
 <summary>Alternative: conda</summary>
 
-Besides the Python packages, `environment.yml` installs the MinIO server and client and PostgreSQL, to reproduce the data infrastructure locally without administrator rights. With [Miniforge](https://conda-forge.org/download/):
+Besides the Python packages, `environment.yml` installs the MinIO server and client and PostgreSQL. With [Miniforge](https://conda-forge.org/download/):
 
 ```bash
 conda env create -f environment.yml

@@ -8,6 +8,7 @@ This folder contains Jupyter notebooks designed to help users explore and utiliz
 * 🔭 **`proposals/proposals.ipynb`**: Select objects for observation proposals, with visibility plots and filtering (brightness, redshift).
 * 🌐 **`footprints/footprints.ipynb`**: Create plots for footprints of all surveys used in this work.
 * 🍎 **`modified-gravity-tests/*.ipynb`**: Perform several tests related to the applications presented in the aforementioned paper.
+* 🎓 **`minicourse/*.ipynb`**: Guided minicourse *Using and contributing to the LaStBeRu Strong Lensing compilation* (see its [README](minicourse/README.md)).
 
 ## Getting Started
 
